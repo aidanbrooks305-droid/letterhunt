@@ -85,6 +85,12 @@
       gap: 16px;
     }
 
+    .hero-bank-layout {
+      display: grid;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
     h1 {
       margin: 0;
       font-size: clamp(2rem, 4vw, 3.2rem);
@@ -480,21 +486,32 @@
         gap: 14px;
       }
 
+      .hero-bank-layout {
+        grid-template-columns: minmax(0, 1fr) 92px;
+        align-items: start;
+        gap: 10px;
+      }
+
       .stats {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: 1fr;
         gap: 8px;
       }
 
       .stat {
-        padding: 12px 10px;
+        padding: 10px 8px;
+        min-height: 74px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
       }
 
       .stat-label {
-        font-size: 0.68rem;
+        font-size: 0.62rem;
+        margin-bottom: 6px;
       }
 
       .stat-value {
-        font-size: 1.25rem;
+        font-size: 1.1rem;
       }
 
       .bank-groups {
@@ -538,6 +555,13 @@
           <h1>Letter Hunt</h1>
           <p class="subtitle">Select one unused letter tile to place it anywhere, or select a placed tile on the board to move it.</p>
         </div>
+      </div>
+
+      <section class="hero-bank-layout">
+        <div>
+          <h2 style="margin: 0 0 12px; font-size: 1rem; letter-spacing: -0.02em;">Shared Letter Bank</h2>
+          <div id="bank" class="bank-groups"></div>
+        </div>
         <div class="stats">
           <div class="stat">
             <span class="stat-label">Score</span>
@@ -552,11 +576,6 @@
             <span id="words-made" class="stat-value">0</span>
           </div>
         </div>
-      </div>
-
-      <section>
-        <h2 style="margin: 0 0 12px; font-size: 1rem; letter-spacing: -0.02em;">Shared Letter Bank</h2>
-        <div id="bank" class="bank-groups"></div>
       </section>
     </section>
 
