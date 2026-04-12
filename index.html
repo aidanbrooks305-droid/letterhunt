@@ -19,7 +19,7 @@
       --danger-soft: #fee4e2;
       --shadow: 0 14px 40px rgba(17, 24, 39, 0.08);
       --radius: 20px;
-      --tile: 42px;
+      --tile: 48px;
       --storage-key: "letter-hunt-save-v1";
     }
 
@@ -39,7 +39,7 @@
     }
 
     .shell {
-      width: min(1400px, calc(100vw - 32px));
+      width: min(1560px, calc(100vw - 32px));
       margin: 24px auto;
       display: grid;
       gap: 20px;
@@ -59,13 +59,13 @@
 
     .main-grid {
       display: grid;
-      grid-template-columns: minmax(300px, 1.2fr) minmax(320px, 0.8fr);
-      gap: 20px;
+      grid-template-columns: minmax(760px, 1.35fr) minmax(320px, 0.65fr);
+      gap: 24px;
       align-items: start;
     }
 
     .board-panel {
-      padding: 22px;
+      padding: 24px;
     }
 
     .sidebar {
@@ -102,7 +102,8 @@
       margin: 10px 0 0;
       color: var(--muted);
       line-height: 1.5;
-      font-size: 0.96rem;
+      font-size: 1rem;
+      max-width: 62ch;
     }
 
     .stats {
@@ -135,11 +136,12 @@
 
     .board-wrap {
       overflow: auto;
-      padding: 8px;
+      padding: 14px;
       background:
         linear-gradient(180deg, #fcfcfd, #f5f7f9);
       border: 1px solid var(--border);
-      border-radius: 24px;
+      border-radius: 28px;
+      scrollbar-width: thin;
     }
 
     .board {
@@ -154,7 +156,7 @@
     .cell {
       width: var(--tile);
       height: var(--tile);
-      border-radius: 14px;
+      border-radius: 16px;
       border: 1px solid #d6dbe1;
       background: #ffffff;
       display: grid;
@@ -162,7 +164,7 @@
       position: relative;
       transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
       font-weight: 800;
-      font-size: 1rem;
+      font-size: 1.05rem;
       cursor: pointer;
       user-select: none;
     }
@@ -295,28 +297,27 @@
     .bank-groups {
       display: grid;
       gap: 14px;
-      max-height: 32vh;
+      max-height: 36vh;
       overflow: auto;
       padding-right: 4px;
     }
 
     .bank-group {
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 14px;
+      border-radius: 20px;
+      padding: 16px;
       background: #fbfcfd;
     }
 
     .bank-head {
       display: flex;
-      justify-content: space-between;
       align-items: center;
       gap: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .bank-word {
-      font-size: 1rem;
+      font-size: 1.08rem;
       font-weight: 800;
       letter-spacing: 0.02em;
     }
@@ -333,9 +334,9 @@
     }
 
     .tile {
-      width: 42px;
-      height: 52px;
-      border-radius: 14px;
+      width: 52px;
+      height: 64px;
+      border-radius: 16px;
       border: 1px solid var(--border);
       background: white;
       color: var(--text);
@@ -343,7 +344,7 @@
       display: grid;
       place-items: center;
       font-weight: 800;
-      font-size: 1.05rem;
+      font-size: 1.28rem;
       padding: 0;
     }
 
@@ -351,7 +352,7 @@
       position: absolute;
       right: 7px;
       bottom: 6px;
-      font-size: 0.63rem;
+      font-size: 0.68rem;
       color: var(--muted);
       font-weight: 700;
     }
@@ -399,7 +400,7 @@
 
     .banner {
       padding: 14px 16px;
-      border-radius: 16px;
+      border-radius: 18px;
       background: #f8fafb;
       border: 1px solid var(--border);
       font-size: 0.94rem;
@@ -452,6 +453,10 @@
     }
 
     @media (max-width: 1080px) {
+      :root {
+        --tile: 44px;
+      }
+
       .main-grid {
         grid-template-columns: 1fr;
       }
@@ -463,9 +468,17 @@
       .compact-stack {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
+
+      .sidebar {
+        position: static;
+      }
     }
 
     @media (max-width: 700px) {
+      :root {
+        --tile: 42px;
+      }
+
       body {
         background: var(--bg);
       }
@@ -487,7 +500,7 @@
       }
 
       .hero-bank-layout {
-        grid-template-columns: minmax(0, 1fr) 92px;
+        grid-template-columns: minmax(0, 1fr) 96px;
         align-items: start;
         gap: 10px;
       }
@@ -522,9 +535,20 @@
         padding: 12px;
       }
 
+      .tile {
+        width: 48px;
+        height: 58px;
+        font-size: 1.18rem;
+      }
+
       .board-wrap {
-        padding: 6px;
+        padding: 10px 8px;
         border-radius: 20px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .board {
+        justify-content: start;
       }
 
       .action-row {
@@ -543,6 +567,26 @@
 
       .log {
         max-height: 180px;
+      }
+    }
+
+    @media (min-width: 1081px) {
+      .sidebar {
+        position: sticky;
+        top: 24px;
+      }
+
+      .hero-panel {
+        padding: 26px;
+      }
+
+      .hero-bank-layout {
+        grid-template-columns: minmax(0, 1fr) 320px;
+        align-items: start;
+      }
+
+      .stats {
+        align-self: start;
       }
     }
   </style>
@@ -635,6 +679,15 @@
     const BOARD_SIZE = 13;
     const CENTER = Math.floor(BOARD_SIZE / 2);
     const STORAGE_KEY = "letter-hunt-save-v1";
+    const ALLOWED_TWO_LETTER_WORDS = new Set([
+      "am", "an", "as", "at",
+      "be", "by", "do", "go",
+      "he", "if", "in", "is",
+      "it", "me", "my", "no",
+      "of", "on", "or", "so",
+      "to", "up", "us", "we",
+      "yi", "xi",
+    ]);
     const LETTER_VALUES = {
       a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1, j: 8, k: 5, l: 1, m: 3,
       n: 1, o: 1, p: 3, q: 10, r: 1, s: 1, t: 1, u: 1, v: 4, w: 4, x: 8, y: 4, z: 10,
@@ -937,10 +990,9 @@
           if (candidate && candidate.length >= 2 && !seen.has(candidate)) queue.push(candidate);
         };
 
-        if (current.endsWith("ies") && current.length > 4) tryAdd(current.slice(0, -3) + "y");
         if (current.endsWith("ied") && current.length > 4) tryAdd(current.slice(0, -3) + "y");
 
-        ["s", "es", "ed", "er", "est", "ing", "ly", "ness", "ment"].forEach((suffix) => {
+        ["ed", "er", "est", "ing", "ly", "ness", "ment"].forEach((suffix) => {
           if (current.endsWith(suffix) && current.length - suffix.length >= 2) {
             const stripped = current.slice(0, -suffix.length);
             tryAdd(stripped);
@@ -958,6 +1010,9 @@
 
     function isBlockedBySource(word) {
       const lower = word.toLowerCase();
+      if (state.sourceWords.some((source) => source.word === lower)) {
+        return true;
+      }
       const targetStems = stemVariants(lower);
       return state.sourceWords.some((source) => {
         const sourceStems = stemVariants(source.word);
@@ -971,6 +1026,7 @@
     function isDictionaryWord(word) {
       const lower = word.toLowerCase();
       if (lower.length === 1) return lower === "a" || lower === "i";
+      if (lower.length === 2) return ALLOWED_TWO_LETTER_WORDS.has(lower);
       return dictionary.has(lower);
     }
 
@@ -1277,7 +1333,6 @@
         head.className = "bank-head";
         head.innerHTML = `
           <div class="bank-word">${group.word.toUpperCase()}</div>
-          <div class="bank-meta">${group.kind === "initial" ? "Starter word" : "Trade word"}</div>
         `;
         wrapper.appendChild(head);
 
