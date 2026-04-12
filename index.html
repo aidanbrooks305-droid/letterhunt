@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letter Hunt</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --panel-2: #f6f7f8;
+      --border: #d9dde2;
+      --border-strong: #111827;
+      --text: #111827;
+      --muted: #5b6472;
+      --accent: #0f766e;
+      --accent-soft: #dff6f3;
+      --danger: #b42318;
+      --danger-soft: #fee4e2;
+      --shadow: 0 14px 40px rgba(17, 24, 39, 0.08);
+      --radius: 20px;
+      --tile: 42px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Manrope, "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.07), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(17, 24, 39, 0.05), transparent 25%),
+        var(--bg);
+    }
+
+    .shell {
+      width: min(1400px, calc(100vw - 32px));
+      margin: 24px auto;
+      display: grid;
+      grid-template-columns: minmax(300px, 1.15fr) minmax(360px, 0.85fr);
+      gap: 20px;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(217, 221, 226, 0.85);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .board-panel {
+      padding: 22px;
+    }
+
+    .sidebar {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 0.94;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 58ch;
+      line-height: 1.5;
+      font-size: 0.96rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(90px, 1fr));
+      gap: 12px;
+      min-width: 320px;
+    }
+
+    .stat {
+      padding: 14px;
+      border-radius: 16px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+
+    .stat-label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    .board-wrap {
+      overflow: auto;
+      padding: 8px;
+      background:
+        linear-gradient(180deg, #fcfcfd, #f5f7f9);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(13, var(--tile));
+      grid-template-rows: repeat(13, var(--tile));
+      gap: 6px;
+      justify-content: center;
+      min-width: fit-content;
+    }
+
+    .cell {
+      width: var(--tile);
+      height: var(--tile);
+      border-radius: 14px;
+      border: 1px solid #d6dbe1;
+      background: #ffffff;
+      display: grid;
+      place-items: center;
+      position: relative;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cell:hover {
+      transform: translateY(-1px);
+      border-color: #adb6c2;
+    }
+
+    .cell.filled {
+      background: linear-gradient(180deg, #111827, #1f2937);
+      color: #ffffff;
+      border-color: #111827;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      cursor: pointer;
+    }
+
+    .cell.selected-cell {
+      box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.24);
+      transform: translateY(-1px);
+    }
+
+    .cell.negative {
+      background: linear-gradient(180deg, #b42318, #912018);
+      border-color: #912018;
+      color: #ffffff;
+    }
+
+    .cell.seed::after {
+      content: "•";
+      position: absolute;
+      color: rgba(15, 118, 110, 0.35);
+      font-size: 1.3rem;
+      inset: auto;
+    }
+
+    .cell.valid {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+    }
+
+    .cell.valid:hover {
+      transform: translateY(-2px);
+    }
+
+    .section {
+      padding: 18px;
+    }
+
+    .section h2,
+    .section h3 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .rule-note,
+    .loading {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.93rem;
+      margin: 0;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: var(--text);
+      color: white;
+    }
+
+    .ghost {
+      background: #eef1f4;
+      color: var(--text);
+    }
+
+    .danger {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .pill-row,
+    .word-list,
+    .log {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .word-chip {
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: #f3f5f7;
+      border: 1px solid var(--border);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .word-chip.penalty {
+      background: var(--danger-soft);
+      border-color: #fecaca;
+      color: var(--danger);
+    }
+
+    .bank-groups {
+      display: grid;
+      gap: 14px;
+      max-height: 48vh;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .bank-group {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      background: #fbfcfd;
+    }
+
+    .bank-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .bank-word {
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .bank-meta {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .tiles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tile {
+      width: 42px;
+      height: 52px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      position: relative;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 1.05rem;
+      padding: 0;
+    }
+
+    .tile small {
+      position: absolute;
+      right: 7px;
+      bottom: 6px;
+      font-size: 0.63rem;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .tile.selected {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+    }
+
+    .tile.used {
+      background: #111827;
+      color: white;
+      border-color: #111827;
+      opacity: 0.9;
+    }
+
+    .tile.traded {
+      background: #f4e8e7;
+      color: #8b2d1f;
+      border-color: #e3beb8;
+      text-decoration: line-through;
+    }
+
+    .tile:disabled {
+      opacity: 1;
+      cursor: default;
+    }
+
+    .log {
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .log-entry {
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #fafbfc;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .banner {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: #f8fafb;
+      border: 1px solid var(--border);
+      font-size: 0.94rem;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .banner strong {
+      color: var(--text);
+    }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin: 0;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      width: min(520px, 100%);
+      background: white;
+      border-radius: 28px;
+      padding: 26px;
+      box-shadow: 0 32px 80px rgba(17, 24, 39, 0.18);
+    }
+
+    .modal h2 {
+      margin: 0 0 10px;
+      font-size: 2rem;
+      letter-spacing: -0.04em;
+    }
+
+    .modal p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1080px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 700px) {
+      body {
+        background: var(--bg);
+      }
+
+      .shell {
+        width: min(100vw - 20px, 1400px);
+        margin: 10px auto 24px;
+      }
+
+      .board-panel,
+      .section {
+        padding: 16px;
+      }
+
+      .topbar {
+        flex-direction: column;
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="panel board-panel">
+      <div class="topbar">
+        <div>
+          <h1>Letter Hunt</h1>
+          <p class="subtitle">
+            Build and reshape words from a shared letter bank. Valid runs score positively, invalid runs turn red and score negatively,
+            and source words plus their close derivatives are still banned from play.
+          </p>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-label">Score</span>
+            <span id="score" class="stat-value">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Letters Left</span>
+            <span id="letters-left" class="stat-value">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Words Made</span>
+            <span id="words-made" class="stat-value">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <div id="board" class="board" aria-label="Letter grid"></div>
+      </div>
+
+      <div class="action-row">
+        <button id="clear-selection" class="ghost">Clear Selection</button>
+        <button id="trade-letter" class="danger">Trade Selected Letter</button>
+        <button id="new-game" class="primary">New Game</button>
+      </div>
+
+      <div class="section" style="padding: 18px 0 0;">
+        <div id="status" class="banner"></div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="panel section">
+        <h2>Source Words</h2>
+        <p class="rule-note">These words feed the bank, but they and their simple derivatives are banned from play.</p>
+        <div id="source-words" class="word-list" style="margin-top: 12px;"></div>
+      </section>
+
+      <section class="panel section">
+        <h2>Shared Letter Bank</h2>
+        <p class="rule-note">Select one unused letter tile to place it anywhere, or select a placed tile on the board to move it.</p>
+        <div id="selected-letter" class="banner" style="margin: 12px 0 14px;">No letter selected.</div>
+        <div id="bank" class="bank-groups"></div>
+      </section>
+
+      <section class="panel section">
+        <h3>Trade Penalties</h3>
+        <div id="trade-words" class="word-list"></div>
+      </section>
+
+      <section class="panel section">
+        <h3>Scoring Feed</h3>
+        <div id="log" class="log"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div id="overlay" class="overlay" aria-hidden="true">
+    <div class="modal">
+      <h2>Round Complete</h2>
+      <p id="final-summary"></p>
+      <div class="action-row">
+        <button id="play-again" class="primary">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./words.js"></script>
+  <script>
+    const BOARD_SIZE = 13;
+    const CENTER = Math.floor(BOARD_SIZE / 2);
+    const LETTER_VALUES = {
+      a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1, j: 8, k: 5, l: 1, m: 3,
+      n: 1, o: 1, p: 3, q: 10, r: 1, s: 1, t: 1, u: 1, v: 4, w: 4, x: 8, y: 4, z: 10,
+    };
+    const SOURCE_WORD_POOL = [
+      "angle", "amber", "anchor", "apple", "arch", "artist", "atlas", "aurora", "baker", "balance",
+      "banner", "basket", "beacon", "beetle", "bicycle", "bloom", "bracket", "bridge", "cactus", "camera",
+      "candle", "canvas", "carbon", "castle", "cedar", "center", "cereal", "circle", "cobalt", "copper",
+      "cosmic", "cradle", "crater", "cricket", "crystal", "dancer", "daring", "daylight", "denim", "desert",
+      "dinner", "dragon", "drizzle", "easel", "echo", "ember", "engine", "fabric", "falcon", "feather",
+      "fiddle", "figure", "filter", "flame", "forest", "fossil", "galaxy", "garden", "glacier", "golden",
+      "granite", "harbor", "hazel", "horizon", "island", "jacket", "jungle", "kernel", "kingdom", "ladder",
+      "lantern", "lattice", "legend", "lemon", "linen", "magnet", "marble", "market", "meadow", "meteor",
+      "mirror", "monarch", "mosaic", "mountain", "nectar", "nickel", "noodle", "notion", "oasis", "onyx",
+      "orbit", "origin", "otter", "paddle", "parade", "pebble", "pepper", "planet", "plaza", "pocket",
+      "polish", "prairie", "quartz", "quiver", "radar", "raven", "reef", "ribbon", "rocket", "saddle",
+      "saffron", "sailor", "scarlet", "shadow", "signal", "silver", "sketch", "solstice", "spruce", "station",
+      "storm", "sunrise", "tangle", "tavern", "thistle", "timber", "topaz", "torch", "travel", "tulip",
+      "umber", "velvet", "voyage", "walnut", "wander", "willow", "window", "winter", "wonder", "yonder",
+    ];
+
+    const dictionary = new Set(
+      window.WORD_SOURCE
+        .split(/\s+/)
+        .map((word) => word.trim())
+        .filter(Boolean)
+    );
+
+    const state = {
+      grid: [],
+      bank: [],
+      sourceWords: [],
+      tradeWords: [],
+      usedSourceWords: new Set(),
+      selectedBankId: null,
+      selectedGridCell: null,
+      score: 0,
+      wordsMade: 0,
+      log: [],
+      nextBankId: 1,
+      sourceCounter: 1,
+      boardAnalysis: null,
+      tradePenaltyTotal: 0,
+    };
+
+    const boardEl = document.getElementById("board");
+    const bankEl = document.getElementById("bank");
+    const sourceWordsEl = document.getElementById("source-words");
+    const tradeWordsEl = document.getElementById("trade-words");
+    const logEl = document.getElementById("log");
+    const scoreEl = document.getElementById("score");
+    const lettersLeftEl = document.getElementById("letters-left");
+    const wordsMadeEl = document.getElementById("words-made");
+    const statusEl = document.getElementById("status");
+    const selectedLetterEl = document.getElementById("selected-letter");
+    const overlayEl = document.getElementById("overlay");
+    const finalSummaryEl = document.getElementById("final-summary");
+
+    document.getElementById("clear-selection").addEventListener("click", () => {
+      state.selectedBankId = null;
+      state.selectedGridCell = null;
+      render();
+    });
+
+    document.getElementById("trade-letter").addEventListener("click", () => {
+      tradeSelectedLetter();
+    });
+
+    document.getElementById("new-game").addEventListener("click", () => {
+      startGame();
+    });
+
+    document.getElementById("play-again").addEventListener("click", () => {
+      overlayEl.classList.remove("show");
+      startGame();
+    });
+
+    function emptyGrid() {
+      return Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => null));
+    }
+
+    function randomFrom(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function getLetterValue(letter) {
+      return LETTER_VALUES[letter.toLowerCase()] || 1;
+    }
+
+    function getLengthBonus(word) {
+      if (word.length >= 8) return 10;
+      if (word.length === 7) return 7;
+      if (word.length === 6) return 4;
+      if (word.length === 5) return 2;
+      return 0;
+    }
+
+    function scoreWord(word) {
+      const base = [...word].reduce((sum, letter) => sum + getLetterValue(letter), 0);
+      return base + getLengthBonus(word);
+    }
+
+    function chooseSourceWord() {
+      const candidates = SOURCE_WORD_POOL.filter((word) => !state.usedSourceWords.has(word));
+      const pool = candidates.length ? candidates : SOURCE_WORD_POOL;
+      const word = randomFrom(pool);
+      state.usedSourceWords.add(word);
+      return word;
+    }
+
+    function addWordToBank(word, kind) {
+      const sourceId = state.sourceCounter++;
+      const entry = { id: sourceId, word, kind };
+      word.split("").forEach((letter, index) => {
+        state.bank.push({
+          id: state.nextBankId++,
+          letter,
+          index,
+          sourceId,
+          sourceWord: word,
+          sourceKind: kind,
+          status: "available",
+        });
+      });
+      if (kind === "initial" || kind === "trade") {
+        state.sourceWords.push(entry);
+      }
+      return entry;
+    }
+
+    function resetState() {
+      state.grid = emptyGrid();
+      state.bank = [];
+      state.sourceWords = [];
+      state.tradeWords = [];
+      state.usedSourceWords = new Set();
+      state.selectedBankId = null;
+      state.selectedGridCell = null;
+      state.score = 0;
+      state.wordsMade = 0;
+      state.log = [];
+      state.nextBankId = 1;
+      state.sourceCounter = 1;
+      state.boardAnalysis = null;
+      state.tradePenaltyTotal = 0;
+    }
+
+    function startGame() {
+      resetState();
+      for (let i = 0; i < 3; i += 1) {
+        addWordToBank(chooseSourceWord(), "initial");
+      }
+      state.boardAnalysis = analyzeBoard();
+      pushLog("Round started with three source words. Place any letter anywhere, or move placed letters to reshape the board.");
+      render();
+    }
+
+    function pushLog(message) {
+      state.log.unshift(message);
+      state.log = state.log.slice(0, 18);
+    }
+
+    function getSelectedTile() {
+      return state.bank.find((tile) => tile.id === state.selectedBankId) || null;
+    }
+
+    function isBoardEmpty() {
+      return state.grid.every((row) => row.every((cell) => cell === null));
+    }
+
+    function inBounds(row, col) {
+      return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
+    }
+
+    function neighbors(row, col) {
+      return [
+        [row - 1, col],
+        [row + 1, col],
+        [row, col - 1],
+        [row, col + 1],
+      ].filter(([r, c]) => inBounds(r, c));
+    }
+
+    function hasAdjacentTile(row, col) {
+      return neighbors(row, col).some(([r, c]) => state.grid[r][c]);
+    }
+
+    function buildWordAt(row, col, direction, placedLetter) {
+      const isHorizontal = direction === "horizontal";
+      let startRow = row;
+      let startCol = col;
+
+      while (true) {
+        const nextRow = startRow - (isHorizontal ? 0 : 1);
+        const nextCol = startCol - (isHorizontal ? 1 : 0);
+        if (!inBounds(nextRow, nextCol)) break;
+        const nextCell = state.grid[nextRow][nextCol];
+        if (!nextCell) break;
+        startRow = nextRow;
+        startCol = nextCol;
+      }
+
+      const cells = [];
+      let cursorRow = startRow;
+      let cursorCol = startCol;
+      while (inBounds(cursorRow, cursorCol)) {
+        let letter = null;
+        if (cursorRow === row && cursorCol === col) {
+          letter = placedLetter;
+        } else if (state.grid[cursorRow][cursorCol]) {
+          letter = state.grid[cursorRow][cursorCol].letter;
+        }
+
+        if (!letter) break;
+        cells.push({ row: cursorRow, col: cursorCol, letter });
+        cursorRow += isHorizontal ? 0 : 1;
+        cursorCol += isHorizontal ? 1 : 0;
+      }
+
+      return {
+        word: cells.map((cell) => cell.letter).join(""),
+        cells,
+      };
+    }
+
+    function stemVariants(word) {
+      const seen = new Set();
+      const queue = [word.toLowerCase()];
+      while (queue.length) {
+        const current = queue.pop();
+        if (!current || current.length < 2 || seen.has(current)) continue;
+        seen.add(current);
+
+        const tryAdd = (candidate) => {
+          if (candidate && candidate.length >= 2 && !seen.has(candidate)) queue.push(candidate);
+        };
+
+        if (current.endsWith("ies") && current.length > 4) tryAdd(current.slice(0, -3) + "y");
+        if (current.endsWith("ied") && current.length > 4) tryAdd(current.slice(0, -3) + "y");
+
+        ["s", "es", "ed", "er", "est", "ing", "ly", "ness", "ment"].forEach((suffix) => {
+          if (current.endsWith(suffix) && current.length - suffix.length >= 2) {
+            const stripped = current.slice(0, -suffix.length);
+            tryAdd(stripped);
+            if (/([bcdfghjklmnpqrstvwxyz])\1$/.test(stripped)) {
+              tryAdd(stripped.slice(0, -1));
+            }
+            if (suffix === "ing" || suffix === "ed") {
+              tryAdd(stripped + "e");
+            }
+          }
+        });
+      }
+      return seen;
+    }
+
+    function isBlockedBySource(word) {
+      const lower = word.toLowerCase();
+      const targetStems = stemVariants(lower);
+      return state.sourceWords.some((source) => {
+        const sourceStems = stemVariants(source.word);
+        for (const variant of targetStems) {
+          if (sourceStems.has(variant)) return true;
+        }
+        return false;
+      });
+    }
+
+    function isDictionaryWord(word) {
+      const lower = word.toLowerCase();
+      if (lower.length === 1) return lower === "a" || lower === "i";
+      return dictionary.has(lower);
+    }
+
+    function isPlayableWord(word) {
+      const lower = word.toLowerCase();
+      if (!/^[a-z]+$/.test(lower)) return false;
+      if (!isDictionaryWord(lower)) return false;
+      if (isBlockedBySource(lower)) return false;
+      return true;
+    }
+
+    function availablePlacements() {
+      const positions = new Set();
+      for (let row = 0; row < BOARD_SIZE; row += 1) {
+        for (let col = 0; col < BOARD_SIZE; col += 1) {
+          if (!state.grid[row][col]) {
+            positions.add(`${row}:${col}`);
+          }
+        }
+      }
+      return positions;
+    }
+
+    function collectLineSequences(direction) {
+      const sequences = [];
+      const outerMax = direction === "horizontal" ? BOARD_SIZE : BOARD_SIZE;
+      const innerMax = BOARD_SIZE;
+
+      for (let outer = 0; outer < outerMax; outer += 1) {
+        let cells = [];
+        for (let inner = 0; inner < innerMax; inner += 1) {
+          const row = direction === "horizontal" ? outer : inner;
+          const col = direction === "horizontal" ? inner : outer;
+          const cell = state.grid[row][col];
+
+          if (cell) {
+            cells.push({ row, col, letter: cell.letter, bankId: cell.bankId });
+          } else if (cells.length) {
+            if (cells.length > 1) {
+              sequences.push({
+                direction,
+                word: cells.map((item) => item.letter).join(""),
+                cells: [...cells],
+              });
+            }
+            cells = [];
+          }
+        }
+
+        if (cells.length > 1) {
+          sequences.push({
+            direction,
+            word: cells.map((item) => item.letter).join(""),
+            cells: [...cells],
+          });
+        }
+      }
+
+      return sequences;
+    }
+
+    function analyzeBoard() {
+      const sequences = [
+        ...collectLineSequences("horizontal"),
+        ...collectLineSequences("vertical"),
+      ];
+      const validWords = [];
+      const invalidWords = [];
+      const validCellKeys = new Set();
+      const invalidCellKeys = new Set();
+      let score = 0;
+
+      sequences.forEach((sequence) => {
+        const points = scoreWord(sequence.word);
+        if (isPlayableWord(sequence.word)) {
+          validWords.push({ ...sequence, points });
+          score += points;
+          sequence.cells.forEach((cell) => validCellKeys.add(`${cell.row}:${cell.col}`));
+        } else {
+          invalidWords.push({ ...sequence, points });
+          score -= points;
+          sequence.cells.forEach((cell) => invalidCellKeys.add(`${cell.row}:${cell.col}`));
+        }
+      });
+
+      for (let row = 0; row < BOARD_SIZE; row += 1) {
+        for (let col = 0; col < BOARD_SIZE; col += 1) {
+          const cell = state.grid[row][col];
+          if (!cell) continue;
+          const key = `${row}:${col}`;
+          if (validCellKeys.has(key) || invalidCellKeys.has(key)) continue;
+          const points = scoreWord(cell.letter);
+          if (isPlayableWord(cell.letter)) {
+            validWords.push({
+              direction: "single",
+              word: cell.letter,
+              cells: [{ row, col, letter: cell.letter, bankId: cell.bankId }],
+              points,
+            });
+            score += points;
+          } else {
+            invalidWords.push({
+              direction: "single",
+              word: cell.letter,
+              cells: [{ row, col, letter: cell.letter, bankId: cell.bankId }],
+              points,
+            });
+            score -= points;
+            invalidCellKeys.add(key);
+          }
+        }
+      }
+
+      return {
+        score,
+        validWords,
+        invalidWords,
+        invalidCellKeys,
+      };
+    }
+
+    function setBoardAnalysisAndTrack(actionLabel) {
+      const previousScore = state.score;
+      state.boardAnalysis = analyzeBoard();
+      state.score = state.boardAnalysis.score - state.tradePenaltyTotal;
+      state.wordsMade = state.boardAnalysis.validWords.length;
+
+      const delta = state.score - previousScore;
+      const invalidCount = state.boardAnalysis.invalidWords.length;
+      const parts = [];
+      if (delta > 0) parts.push(`+${delta} points`);
+      if (delta < 0) parts.push(`${delta} points`);
+      if (delta === 0) parts.push("no score change");
+      if (invalidCount) {
+        parts.push(`${invalidCount} invalid sequence${invalidCount === 1 ? "" : "s"}`);
+      } else {
+        parts.push("board fully valid");
+      }
+
+      pushLog(`${actionLabel} (${parts.join(", ")}).`);
+    }
+
+    function placeSelectedTile(row, col) {
+      const tile = getSelectedTile();
+      if (!tile) return;
+      if (!inBounds(row, col) || state.grid[row][col]) {
+        statusEl.innerHTML = "<strong>Occupied square.</strong> Choose an empty spot for that letter.";
+        return;
+      }
+
+      state.grid[row][col] = {
+        letter: tile.letter,
+        bankId: tile.id,
+      };
+      tile.status = "used";
+      state.selectedBankId = null;
+      setBoardAnalysisAndTrack(`Placed "${tile.letter.toUpperCase()}"`);
+      const invalidCount = state.boardAnalysis.invalidWords.length;
+      statusEl.innerHTML = invalidCount
+        ? `<strong>Placed.</strong> ${invalidCount} invalid sequence${invalidCount === 1 ? "" : "s"} currently scoring negative and highlighted in red.`
+        : "<strong>Placed.</strong> The board is fully valid right now.";
+
+      if (!hasAvailableLetters()) {
+        finishRound();
+      }
+
+      render();
+    }
+
+    function moveSelectedTile(row, col) {
+      if (!state.selectedGridCell) return;
+      if (!inBounds(row, col) || state.grid[row][col]) {
+        statusEl.innerHTML = "<strong>Occupied square.</strong> Move the tile to an empty space.";
+        return;
+      }
+
+      const { row: fromRow, col: fromCol } = state.selectedGridCell;
+      const cell = state.grid[fromRow][fromCol];
+      if (!cell) {
+        state.selectedGridCell = null;
+        render();
+        return;
+      }
+
+      state.grid[fromRow][fromCol] = null;
+      state.grid[row][col] = cell;
+      state.selectedGridCell = null;
+      setBoardAnalysisAndTrack(`Moved "${cell.letter.toUpperCase()}"`);
+
+      const invalidCount = state.boardAnalysis.invalidWords.length;
+      statusEl.innerHTML = invalidCount
+        ? `<strong>Move complete.</strong> ${invalidCount} invalid sequence${invalidCount === 1 ? "" : "s"} currently scoring negative.`
+        : "<strong>Move complete.</strong> The board is fully valid right now.";
+
+      render();
+    }
+
+    function hasAvailableLetters() {
+      return state.bank.some((tile) => tile.status === "available");
+    }
+
+    function tradeSelectedLetter() {
+      const tile = getSelectedTile();
+      if (!tile) {
+        statusEl.innerHTML = "<strong>No letter selected.</strong> Choose an unused tile first if you want to trade.";
+        return;
+      }
+      if (tile.status !== "available") {
+        statusEl.innerHTML = "<strong>That tile is locked.</strong> Only unused letters can be traded.";
+        return;
+      }
+
+      tile.status = "traded";
+      state.selectedBankId = null;
+
+      const newWord = chooseSourceWord();
+      const penalty = scoreWord(newWord);
+      addWordToBank(newWord, "trade");
+      state.tradeWords.push({ word: newWord, penalty });
+      state.tradePenaltyTotal += penalty;
+      setBoardAnalysisAndTrack(`Traded "${tile.letter.toUpperCase()}" for "${newWord.toUpperCase()}" and took -${penalty}`);
+      statusEl.innerHTML = `<strong>Trade complete.</strong> ${newWord.toUpperCase()} was added to the bank and cost ${penalty} points.`;
+      render();
+    }
+
+    function finishRound() {
+      finalSummaryEl.textContent = `Final score: ${state.score}. You made ${state.wordsMade} scored word${state.wordsMade === 1 ? "" : "s"} and exhausted the bank.`;
+      overlayEl.classList.add("show");
+    }
+
+    function tileGroups() {
+      return state.sourceWords.map((source) => ({
+        ...source,
+        tiles: state.bank.filter((tile) => tile.sourceId === source.id),
+      }));
+    }
+
+    function renderBoard() {
+      const selected = getSelectedTile();
+      const selectedGridCellKey = state.selectedGridCell ? `${state.selectedGridCell.row}:${state.selectedGridCell.col}` : null;
+      const openPlacements = selected || state.selectedGridCell ? availablePlacements() : new Set();
+
+      boardEl.innerHTML = "";
+      for (let row = 0; row < BOARD_SIZE; row += 1) {
+        for (let col = 0; col < BOARD_SIZE; col += 1) {
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = "cell";
+          const key = `${row}:${col}`;
+          const item = state.grid[row][col];
+
+          if (!item && isBoardEmpty() && row === CENTER && col === CENTER) {
+            cell.classList.add("seed");
+          }
+
+          if (item) {
+            cell.textContent = item.letter.toUpperCase();
+            cell.classList.add("filled");
+            if (state.boardAnalysis && state.boardAnalysis.invalidCellKeys.has(key)) {
+              cell.classList.add("negative");
+            }
+            if (selectedGridCellKey === key) {
+              cell.classList.add("selected-cell");
+            }
+            cell.addEventListener("click", () => {
+              if (state.selectedBankId) {
+                statusEl.innerHTML = "<strong>Bank tile selected.</strong> Click an empty square to place it, or clear the selection first.";
+                return;
+              }
+              state.selectedGridCell = selectedGridCellKey === key ? null : { row, col };
+              render();
+            });
+          } else {
+            if (openPlacements.has(key)) {
+              cell.classList.add("valid");
+            }
+            cell.addEventListener("click", () => {
+              if (state.selectedBankId) {
+                placeSelectedTile(row, col);
+                return;
+              }
+              if (state.selectedGridCell) {
+                moveSelectedTile(row, col);
+              }
+            });
+            cell.disabled = !(selected || state.selectedGridCell);
+          }
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function renderBank() {
+      const selected = getSelectedTile();
+      const groups = tileGroups();
+      bankEl.innerHTML = "";
+
+      groups.forEach((group) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "bank-group";
+
+        const head = document.createElement("div");
+        head.className = "bank-head";
+        head.innerHTML = `
+          <div class="bank-word">${group.word.toUpperCase()}</div>
+          <div class="bank-meta">${group.kind === "initial" ? "Starter word" : "Trade word"}</div>
+        `;
+        wrapper.appendChild(head);
+
+        const tilesEl = document.createElement("div");
+        tilesEl.className = "tiles";
+
+        group.tiles.forEach((tile) => {
+          const tileButton = document.createElement("button");
+          tileButton.type = "button";
+          tileButton.className = "tile";
+          tileButton.innerHTML = `${tile.letter.toUpperCase()}<small>${getLetterValue(tile.letter)}</small>`;
+          if (tile.status === "used") tileButton.classList.add("used");
+          if (tile.status === "traded") tileButton.classList.add("traded");
+          if (selected && selected.id === tile.id) tileButton.classList.add("selected");
+          tileButton.disabled = tile.status !== "available";
+          tileButton.addEventListener("click", () => {
+            state.selectedGridCell = null;
+            state.selectedBankId = tile.id === state.selectedBankId ? null : tile.id;
+            render();
+          });
+          tilesEl.appendChild(tileButton);
+        });
+
+        wrapper.appendChild(tilesEl);
+        bankEl.appendChild(wrapper);
+      });
+    }
+
+    function renderWords() {
+      sourceWordsEl.innerHTML = "";
+      state.sourceWords.forEach((source) => {
+        const chip = document.createElement("div");
+        chip.className = `word-chip${source.kind === "trade" ? " penalty" : ""}`;
+        chip.textContent = source.word.toUpperCase();
+        sourceWordsEl.appendChild(chip);
+      });
+
+      tradeWordsEl.innerHTML = "";
+      if (!state.tradeWords.length) {
+        tradeWordsEl.innerHTML = '<p class="empty-state">No traded words yet.</p>';
+        return;
+      }
+
+      state.tradeWords.forEach((trade) => {
+        const chip = document.createElement("div");
+        chip.className = "word-chip penalty";
+        chip.textContent = `${trade.word.toUpperCase()} (-${trade.penalty})`;
+        tradeWordsEl.appendChild(chip);
+      });
+    }
+
+    function renderLog() {
+      logEl.innerHTML = "";
+      state.log.forEach((entry) => {
+        const item = document.createElement("div");
+        item.className = "log-entry";
+        item.textContent = entry;
+        logEl.appendChild(item);
+      });
+    }
+
+    function renderStats() {
+      scoreEl.textContent = state.score;
+      lettersLeftEl.textContent = state.bank.filter((tile) => tile.status === "available").length;
+      wordsMadeEl.textContent = state.wordsMade;
+
+      const selected = getSelectedTile();
+      if (!selected) {
+        if (state.selectedGridCell) {
+          const cell = state.grid[state.selectedGridCell.row][state.selectedGridCell.col];
+          selectedLetterEl.innerHTML = cell
+            ? `<strong>${cell.letter.toUpperCase()}</strong> selected from the board. Click any empty square to move it.`
+            : "No letter selected.";
+        } else {
+          selectedLetterEl.innerHTML = "No letter selected.";
+        }
+      } else {
+        const openCount = availablePlacements().size;
+        selectedLetterEl.innerHTML = `<strong>${selected.letter.toUpperCase()}</strong> selected. ${openCount} open square${openCount === 1 ? "" : "s"} available.`;
+      }
+
+      if (!state.log.length) {
+        statusEl.innerHTML = "<strong>Loading…</strong>";
+      } else if (isBoardEmpty()) {
+        statusEl.innerHTML = "<strong>Board ready.</strong> Pick any unused tile and place it anywhere on the grid.";
+      }
+    }
+
+    function render() {
+      renderBoard();
+      renderBank();
+      renderWords();
+      renderLog();
+      renderStats();
+    }
+
+    startGame();
+  </script>
+</body>
+</html>
