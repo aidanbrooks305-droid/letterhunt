@@ -20,6 +20,7 @@
       --shadow: 0 14px 40px rgba(17, 24, 39, 0.08);
       --radius: 20px;
       --tile: 42px;
+      --storage-key: "letter-hunt-save-v1";
     }
 
     * {
@@ -41,7 +42,6 @@
       width: min(1400px, calc(100vw - 32px));
       margin: 24px auto;
       display: grid;
-      grid-template-columns: minmax(300px, 1.15fr) minmax(360px, 0.85fr);
       gap: 20px;
     }
 
@@ -51,6 +51,17 @@
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       backdrop-filter: blur(14px);
+    }
+
+    .hero-panel {
+      padding: 22px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(300px, 1.2fr) minmax(320px, 0.8fr);
+      gap: 20px;
+      align-items: start;
     }
 
     .board-panel {
@@ -63,12 +74,15 @@
       align-content: start;
     }
 
+    .compact-stack {
+      display: grid;
+      gap: 16px;
+    }
+
     .topbar {
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       gap: 16px;
-      align-items: flex-start;
-      margin-bottom: 18px;
     }
 
     h1 {
@@ -79,9 +93,8 @@
     }
 
     .subtitle {
-      margin: 8px 0 0;
+      margin: 10px 0 0;
       color: var(--muted);
-      max-width: 58ch;
       line-height: 1.5;
       font-size: 0.96rem;
     }
@@ -90,7 +103,6 @@
       display: grid;
       grid-template-columns: repeat(3, minmax(90px, 1fr));
       gap: 12px;
-      min-width: 320px;
     }
 
     .stat {
@@ -277,7 +289,7 @@
     .bank-groups {
       display: grid;
       gap: 14px;
-      max-height: 48vh;
+      max-height: 32vh;
       overflow: auto;
       padding-right: 4px;
     }
@@ -434,12 +446,16 @@
     }
 
     @media (max-width: 1080px) {
-      .shell {
+      .main-grid {
         grid-template-columns: 1fr;
       }
 
       .stats {
         min-width: 0;
+      }
+
+      .compact-stack {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
@@ -451,33 +467,76 @@
       .shell {
         width: min(100vw - 20px, 1400px);
         margin: 10px auto 24px;
+        gap: 14px;
       }
 
+      .hero-panel,
       .board-panel,
       .section {
         padding: 16px;
       }
 
-      .topbar {
-        flex-direction: column;
+      .main-grid {
+        gap: 14px;
       }
 
       .stats {
         grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .stat {
+        padding: 12px 10px;
+      }
+
+      .stat-label {
+        font-size: 0.68rem;
+      }
+
+      .stat-value {
+        font-size: 1.25rem;
+      }
+
+      .bank-groups {
+        max-height: none;
+      }
+
+      .bank-group {
+        padding: 12px;
+      }
+
+      .board-wrap {
+        padding: 6px;
+        border-radius: 20px;
+      }
+
+      .action-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .action-row button {
+        padding: 12px 10px;
+        border-radius: 16px;
+      }
+
+      .compact-stack {
+        grid-template-columns: 1fr;
+      }
+
+      .log {
+        max-height: 180px;
       }
     }
   </style>
 </head>
 <body>
   <div class="shell">
-    <section class="panel board-panel">
+    <section class="panel hero-panel">
       <div class="topbar">
         <div>
           <h1>Letter Hunt</h1>
-          <p class="subtitle">
-            Build and reshape words from a shared letter bank. Valid runs score positively, invalid runs turn red and score negatively,
-            and source words plus their close derivatives are still banned from play.
-          </p>
+          <p class="subtitle">Select one unused letter tile to place it anywhere, or select a placed tile on the board to move it.</p>
         </div>
         <div class="stats">
           <div class="stat">
@@ -495,6 +554,14 @@
         </div>
       </div>
 
+      <section>
+        <h2 style="margin: 0 0 12px; font-size: 1rem; letter-spacing: -0.02em;">Shared Letter Bank</h2>
+        <div id="bank" class="bank-groups"></div>
+      </section>
+    </section>
+
+    <div class="main-grid">
+    <section class="panel board-panel">
       <div class="board-wrap">
         <div id="board" class="board" aria-label="Letter grid"></div>
       </div>
@@ -510,20 +577,7 @@
       </div>
     </section>
 
-    <aside class="sidebar">
-      <section class="panel section">
-        <h2>Source Words</h2>
-        <p class="rule-note">These words feed the bank, but they and their simple derivatives are banned from play.</p>
-        <div id="source-words" class="word-list" style="margin-top: 12px;"></div>
-      </section>
-
-      <section class="panel section">
-        <h2>Shared Letter Bank</h2>
-        <p class="rule-note">Select one unused letter tile to place it anywhere, or select a placed tile on the board to move it.</p>
-        <div id="selected-letter" class="banner" style="margin: 12px 0 14px;">No letter selected.</div>
-        <div id="bank" class="bank-groups"></div>
-      </section>
-
+    <aside class="sidebar compact-stack">
       <section class="panel section">
         <h3>Trade Penalties</h3>
         <div id="trade-words" class="word-list"></div>
@@ -534,6 +588,17 @@
         <div id="log" class="log"></div>
       </section>
     </aside>
+    </div>
+
+    <section class="panel section">
+      <h2>How To Play</h2>
+      <p class="rule-note">
+        Place any unused bank letter on any empty square. If a row or column spells a valid allowed word, it scores positively.
+        If a run is not valid, every tile in that run turns red and the full run scores negatively until you fix it.
+        You can also select a placed tile and move it to any empty square. Trades remove one unused letter, add a new source word,
+        and subtract that new word's value from your score.
+      </p>
+    </section>
   </div>
 
   <div id="overlay" class="overlay" aria-hidden="true">
@@ -550,6 +615,7 @@
   <script>
     const BOARD_SIZE = 13;
     const CENTER = Math.floor(BOARD_SIZE / 2);
+    const STORAGE_KEY = "letter-hunt-save-v1";
     const LETTER_VALUES = {
       a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1, j: 8, k: 5, l: 1, m: 3,
       n: 1, o: 1, p: 3, q: 10, r: 1, s: 1, t: 1, u: 1, v: 4, w: 4, x: 8, y: 4, z: 10,
@@ -597,14 +663,12 @@
 
     const boardEl = document.getElementById("board");
     const bankEl = document.getElementById("bank");
-    const sourceWordsEl = document.getElementById("source-words");
     const tradeWordsEl = document.getElementById("trade-words");
     const logEl = document.getElementById("log");
     const scoreEl = document.getElementById("score");
     const lettersLeftEl = document.getElementById("letters-left");
     const wordsMadeEl = document.getElementById("words-made");
     const statusEl = document.getElementById("status");
-    const selectedLetterEl = document.getElementById("selected-letter");
     const overlayEl = document.getElementById("overlay");
     const finalSummaryEl = document.getElementById("final-summary");
 
@@ -625,6 +689,14 @@
     document.getElementById("play-again").addEventListener("click", () => {
       overlayEl.classList.remove("show");
       startGame();
+    });
+
+    window.addEventListener("pagehide", () => {
+      persistState();
+    });
+
+    window.addEventListener("beforeunload", () => {
+      persistState();
     });
 
     function emptyGrid() {
@@ -705,6 +777,65 @@
       state.boardAnalysis = analyzeBoard();
       pushLog("Round started with three source words. Place any letter anywhere, or move placed letters to reshape the board.");
       render();
+    }
+
+    function persistState() {
+      const payload = {
+        grid: state.grid,
+        bank: state.bank,
+        sourceWords: state.sourceWords,
+        tradeWords: state.tradeWords,
+        usedSourceWords: [...state.usedSourceWords],
+        selectedBankId: state.selectedBankId,
+        selectedGridCell: state.selectedGridCell,
+        score: state.score,
+        wordsMade: state.wordsMade,
+        log: state.log,
+        nextBankId: state.nextBankId,
+        sourceCounter: state.sourceCounter,
+        tradePenaltyTotal: state.tradePenaltyTotal,
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        // Ignore storage failures so the game stays playable in restricted contexts.
+      }
+    }
+
+    function restoreSavedGame() {
+      let raw = null;
+      try {
+        raw = localStorage.getItem(STORAGE_KEY);
+      } catch (error) {
+        return false;
+      }
+      if (!raw) return false;
+
+      try {
+        const saved = JSON.parse(raw);
+        state.grid = saved.grid || emptyGrid();
+        state.bank = saved.bank || [];
+        state.sourceWords = saved.sourceWords || [];
+        state.tradeWords = saved.tradeWords || [];
+        state.usedSourceWords = new Set(saved.usedSourceWords || []);
+        state.selectedBankId = saved.selectedBankId ?? null;
+        state.selectedGridCell = saved.selectedGridCell ?? null;
+        state.score = saved.score || 0;
+        state.wordsMade = saved.wordsMade || 0;
+        state.log = saved.log || [];
+        state.nextBankId = saved.nextBankId || 1;
+        state.sourceCounter = saved.sourceCounter || 1;
+        state.tradePenaltyTotal = saved.tradePenaltyTotal || 0;
+        state.boardAnalysis = analyzeBoard();
+        state.score = state.boardAnalysis.score - state.tradePenaltyTotal;
+        state.wordsMade = state.boardAnalysis.validWords.length;
+        if (!state.log.length) {
+          pushLog("Saved game restored.");
+        }
+        return true;
+      } catch (error) {
+        return false;
+      }
     }
 
     function pushLog(message) {
@@ -1049,6 +1180,7 @@
     function finishRound() {
       finalSummaryEl.textContent = `Final score: ${state.score}. You made ${state.wordsMade} scored word${state.wordsMade === 1 ? "" : "s"} and exhausted the bank.`;
       overlayEl.classList.add("show");
+      persistState();
     }
 
     function tileGroups() {
@@ -1156,14 +1288,6 @@
     }
 
     function renderWords() {
-      sourceWordsEl.innerHTML = "";
-      state.sourceWords.forEach((source) => {
-        const chip = document.createElement("div");
-        chip.className = `word-chip${source.kind === "trade" ? " penalty" : ""}`;
-        chip.textContent = source.word.toUpperCase();
-        sourceWordsEl.appendChild(chip);
-      });
-
       tradeWordsEl.innerHTML = "";
       if (!state.tradeWords.length) {
         tradeWordsEl.innerHTML = '<p class="empty-state">No traded words yet.</p>';
@@ -1193,21 +1317,6 @@
       lettersLeftEl.textContent = state.bank.filter((tile) => tile.status === "available").length;
       wordsMadeEl.textContent = state.wordsMade;
 
-      const selected = getSelectedTile();
-      if (!selected) {
-        if (state.selectedGridCell) {
-          const cell = state.grid[state.selectedGridCell.row][state.selectedGridCell.col];
-          selectedLetterEl.innerHTML = cell
-            ? `<strong>${cell.letter.toUpperCase()}</strong> selected from the board. Click any empty square to move it.`
-            : "No letter selected.";
-        } else {
-          selectedLetterEl.innerHTML = "No letter selected.";
-        }
-      } else {
-        const openCount = availablePlacements().size;
-        selectedLetterEl.innerHTML = `<strong>${selected.letter.toUpperCase()}</strong> selected. ${openCount} open square${openCount === 1 ? "" : "s"} available.`;
-      }
-
       if (!state.log.length) {
         statusEl.innerHTML = "<strong>Loading…</strong>";
       } else if (isBoardEmpty()) {
@@ -1221,9 +1330,14 @@
       renderWords();
       renderLog();
       renderStats();
+      persistState();
     }
 
-    startGame();
+    if (!restoreSavedGame()) {
+      startGame();
+    } else {
+      render();
+    }
   </script>
 </body>
 </html>
