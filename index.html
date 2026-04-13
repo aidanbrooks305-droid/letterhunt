@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Letter Hunt</title>
   <style>
     :root {
@@ -36,6 +36,7 @@
         radial-gradient(circle at top left, rgba(15, 118, 110, 0.07), transparent 26%),
         radial-gradient(circle at bottom right, rgba(17, 24, 39, 0.05), transparent 25%),
         var(--bg);
+      overflow-x: hidden;
     }
 
     .shell {
@@ -62,16 +63,19 @@
       grid-template-columns: minmax(760px, 1.35fr) minmax(320px, 0.65fr);
       gap: 24px;
       align-items: start;
+      min-width: 0;
     }
 
     .board-panel {
       padding: 24px;
+      min-width: 0;
     }
 
     .sidebar {
       display: grid;
       gap: 16px;
       align-content: start;
+      min-width: 0;
     }
 
     .compact-stack {
@@ -89,6 +93,7 @@
       display: grid;
       gap: 16px;
       margin-top: 16px;
+      min-width: 0;
     }
 
     h1 {
@@ -142,6 +147,8 @@
       border: 1px solid var(--border);
       border-radius: 28px;
       scrollbar-width: thin;
+      width: 100%;
+      max-width: 100%;
     }
 
     .board {
@@ -300,6 +307,7 @@
       max-height: 36vh;
       overflow: auto;
       padding-right: 4px;
+      min-width: 0;
     }
 
     .bank-group {
