@@ -682,11 +682,27 @@
     </div>
   </div>
 
+  <div id="intro-overlay" class="overlay show" aria-hidden="false">
+    <div class="modal">
+      <h2>How It Works</h2>
+      <p>Three quick things before you start:</p>
+      <div class="log" style="max-height: none; margin-bottom: 18px;">
+        <div class="log-entry">Tap a letter in the bank, then tap an empty grid square to place it. Tap a placed tile, then tap a new empty square to move it.</div>
+        <div class="log-entry">The source words that give you letters are banned as playable words, and you also cannot reuse close derivatives of them.</div>
+        <div class="log-entry">Valid words score positive points. Invalid runs turn red and score negatively until you fix them.</div>
+      </div>
+      <div class="action-row">
+        <button id="start-playing" class="primary">Start Playing</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./words.js"></script>
   <script>
     const BOARD_SIZE = 13;
     const CENTER = Math.floor(BOARD_SIZE / 2);
     const STORAGE_KEY = "letter-hunt-save-v1";
+    const INTRO_STORAGE_KEY = "letter-hunt-intro-seen-v1";
     const ALLOWED_TWO_LETTER_WORDS = new Set([
       "am", "an", "as", "at",
       "be", "by", "do", "go",
@@ -750,6 +766,7 @@
     const wordsMadeEl = document.getElementById("words-made");
     const statusEl = document.getElementById("status");
     const overlayEl = document.getElementById("overlay");
+    const introOverlayEl = document.getElementById("intro-overlay");
     const finalSummaryEl = document.getElementById("final-summary");
 
     document.getElementById("clear-selection").addEventListener("click", () => {
@@ -769,6 +786,16 @@
     document.getElementById("play-again").addEventListener("click", () => {
       overlayEl.classList.remove("show");
       startGame();
+    });
+
+    document.getElementById("start-playing").addEventListener("click", () => {
+      introOverlayEl.classList.remove("show");
+      introOverlayEl.setAttribute("aria-hidden", "true");
+      try {
+        localStorage.setItem(INTRO_STORAGE_KEY, "1");
+      } catch (error) {
+        // Ignore storage failures; the intro can reappear if storage is unavailable.
+      }
     });
 
     window.addEventListener("pagehide", () => {
@@ -915,6 +942,23 @@
         return true;
       } catch (error) {
         return false;
+      }
+    }
+
+    function maybeShowIntro() {
+      let seen = false;
+      try {
+        seen = localStorage.getItem(INTRO_STORAGE_KEY) === "1";
+      } catch (error) {
+        seen = false;
+      }
+
+      if (seen) {
+        introOverlayEl.classList.remove("show");
+        introOverlayEl.setAttribute("aria-hidden", "true");
+      } else {
+        introOverlayEl.classList.add("show");
+        introOverlayEl.setAttribute("aria-hidden", "false");
       }
     }
 
@@ -1420,6 +1464,7 @@
     } else {
       render();
     }
+    maybeShowIntro();
   </script>
 </body>
 </html>
