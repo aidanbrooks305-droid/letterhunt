@@ -630,7 +630,7 @@
 
     @media (max-width: 430px) {
       :root {
-        --tile: 20px;
+        --tile: 21px;
       }
 
       .shell {
@@ -654,9 +654,7 @@
       }
 
       .subtitle {
-        font-size: 0.72rem;
-        line-height: 1.25;
-        margin-top: 4px;
+        display: none;
       }
 
       .hero-bank-layout {
@@ -724,7 +722,7 @@
 
       .cell {
         border-radius: 6px;
-        font-size: 0.5rem;
+        font-size: 0.54rem;
       }
 
       .action-row {
@@ -990,6 +988,7 @@
       } catch (error) {
         // Ignore storage failures; the intro can reappear if storage is unavailable.
       }
+      window.scrollTo(0, 0);
     });
 
     window.addEventListener("pagehide", () => {
@@ -1659,6 +1658,7 @@
       render();
     }
     maybeShowIntro();
+    window.scrollTo(0, 0);
   </script>
 </body>
 </html>
