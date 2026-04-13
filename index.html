@@ -149,6 +149,12 @@
       scrollbar-width: thin;
       width: 100%;
       max-width: 100%;
+      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    .board-wrap.placement-mode {
+      border-color: rgba(15, 118, 110, 0.4);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.08);
     }
 
     .board {
@@ -210,13 +216,14 @@
     }
 
     .cell.valid {
-      background: var(--accent-soft);
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+      border-color: #c6d1db;
+      background: #ffffff;
     }
 
     .cell.valid:hover {
       transform: translateY(-2px);
+      border-color: var(--accent);
+      background: rgba(15, 118, 110, 0.08);
     }
 
     .section {
@@ -587,12 +594,13 @@
       }
 
       .board {
-        gap: 2px;
+        gap: 1px;
         justify-content: center;
       }
 
       .cell {
-        border-radius: 8px;
+        border-radius: 4px;
+        border-width: 0.75px;
         font-size: 0.62rem;
       }
 
@@ -725,12 +733,13 @@
       }
 
       .board {
-        gap: 1px;
+        gap: 0;
       }
 
       .cell {
-        border-radius: 6px;
-        font-size: 0.54rem;
+        border-radius: 3px;
+        border-width: 0.5px;
+        font-size: 0.5rem;
       }
 
       .action-row {
@@ -962,6 +971,7 @@
     };
 
     const boardEl = document.getElementById("board");
+    const boardWrapEl = document.querySelector(".board-wrap");
     const bankEl = document.getElementById("bank");
     const tradeWordsEl = document.getElementById("trade-words");
     const logEl = document.getElementById("log");
@@ -1526,6 +1536,9 @@
       const selected = getSelectedTile();
       const selectedGridCellKey = state.selectedGridCell ? `${state.selectedGridCell.row}:${state.selectedGridCell.col}` : null;
       const openPlacements = selected || state.selectedGridCell ? availablePlacements() : new Set();
+      const showPlacementTint = openPlacements.size > 0;
+
+      boardWrapEl.classList.toggle("placement-mode", showPlacementTint);
 
       boardEl.innerHTML = "";
       for (let row = 0; row < BOARD_SIZE; row += 1) {
@@ -1558,7 +1571,7 @@
               render();
             });
           } else {
-            if (openPlacements.has(key)) {
+            if (openPlacements.has(key) && openPlacements.size <= 12) {
               cell.classList.add("valid");
             }
             cell.addEventListener("click", () => {
