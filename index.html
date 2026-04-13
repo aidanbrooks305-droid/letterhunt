@@ -417,6 +417,10 @@
       color: var(--muted);
     }
 
+    .banner:empty {
+      display: none;
+    }
+
     .banner strong {
       color: var(--text);
     }
@@ -605,6 +609,10 @@
         font-size: 0.78rem;
       }
 
+      .board-panel .section[style] {
+        padding-top: 6px !important;
+      }
+
       .compact-stack {
         grid-template-columns: 1fr;
       }
@@ -734,6 +742,10 @@
         padding: 6px 3px;
         border-radius: 9px;
         font-size: 0.62rem;
+      }
+
+      .board-panel .section[style] {
+        padding-top: 4px !important;
       }
 
       .banner,
@@ -1640,6 +1652,8 @@
         statusEl.innerHTML = "<strong>Loading…</strong>";
       } else if (isBoardEmpty()) {
         statusEl.innerHTML = "<strong>Board ready.</strong> Pick any unused tile and place it anywhere on the grid.";
+      } else if (!state.selectedBankId && !state.selectedGridCell) {
+        statusEl.innerHTML = "";
       }
     }
 
