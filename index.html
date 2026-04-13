@@ -484,7 +484,7 @@
 
     @media (max-width: 700px) {
       :root {
-        --tile: 42px;
+        --tile: 24px;
       }
 
       body {
@@ -500,73 +500,108 @@
       .hero-panel,
       .board-panel,
       .section {
-        padding: 16px;
+        padding: 12px;
       }
 
       .main-grid {
-        gap: 14px;
-      }
-
-      .hero-bank-layout {
-        grid-template-columns: minmax(0, 1fr) 96px;
-        align-items: start;
         gap: 10px;
       }
 
-      .stats {
+      .hero-bank-layout {
         grid-template-columns: 1fr;
         gap: 8px;
       }
 
+      .stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
       .stat {
-        padding: 10px 8px;
-        min-height: 74px;
+        padding: 8px 6px;
+        min-height: 56px;
         display: flex;
         flex-direction: column;
         justify-content: center;
       }
 
       .stat-label {
-        font-size: 0.62rem;
-        margin-bottom: 6px;
+        font-size: 0.56rem;
+        margin-bottom: 4px;
       }
 
       .stat-value {
-        font-size: 1.1rem;
+        font-size: 0.96rem;
       }
 
       .bank-groups {
         max-height: none;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        padding-right: 0;
       }
 
       .bank-group {
-        padding: 12px;
+        padding: 8px;
+        border-radius: 14px;
+      }
+
+      .bank-head {
+        margin-bottom: 6px;
+      }
+
+      .bank-word {
+        font-size: 0.72rem;
+        line-height: 1.1;
+        word-break: break-word;
+      }
+
+      .tiles {
+        gap: 4px;
       }
 
       .tile {
-        width: 48px;
-        height: 58px;
-        font-size: 1.18rem;
+        width: 28px;
+        height: 36px;
+        border-radius: 10px;
+        font-size: 0.92rem;
+      }
+
+      .tile small {
+        right: 4px;
+        bottom: 3px;
+        font-size: 0.48rem;
       }
 
       .board-wrap {
-        padding: 10px 8px;
-        border-radius: 20px;
+        padding: 6px;
+        border-radius: 16px;
         -webkit-overflow-scrolling: touch;
+        overflow: hidden;
       }
 
       .board {
-        justify-content: start;
+        gap: 2px;
+        justify-content: center;
+      }
+
+      .cell {
+        border-radius: 8px;
+        font-size: 0.72rem;
       }
 
       .action-row {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        margin-top: 10px;
       }
 
       .action-row button {
-        padding: 12px 10px;
-        border-radius: 16px;
+        padding: 9px 6px;
+        border-radius: 12px;
+        font-size: 0.78rem;
       }
 
       .compact-stack {
@@ -574,7 +609,151 @@
       }
 
       .log {
-        max-height: 180px;
+        max-height: 120px;
+      }
+
+      .banner,
+      .rule-note,
+      .log-entry {
+        font-size: 0.78rem;
+      }
+
+      .subtitle {
+        font-size: 0.86rem;
+      }
+
+      h1 {
+        font-size: 1.8rem;
+      }
+    }
+
+    @media (max-width: 430px) {
+      :root {
+        --tile: 22px;
+      }
+
+      .shell {
+        width: calc(100vw - 12px);
+        margin: 6px auto 18px;
+        gap: 8px;
+      }
+
+      .hero-panel,
+      .board-panel,
+      .section {
+        padding: 10px;
+      }
+
+      .topbar {
+        gap: 8px;
+      }
+
+      h1 {
+        font-size: 1.55rem;
+      }
+
+      .subtitle {
+        font-size: 0.78rem;
+        line-height: 1.35;
+        margin-top: 6px;
+      }
+
+      .hero-bank-layout {
+        gap: 6px;
+        margin-top: 10px;
+      }
+
+      .stats {
+        gap: 4px;
+      }
+
+      .stat {
+        min-height: 50px;
+        padding: 6px 4px;
+        border-radius: 12px;
+      }
+
+      .stat-label {
+        font-size: 0.5rem;
+        margin-bottom: 3px;
+      }
+
+      .stat-value {
+        font-size: 0.86rem;
+      }
+
+      .bank-groups {
+        gap: 4px;
+      }
+
+      .bank-group {
+        padding: 6px;
+        border-radius: 12px;
+      }
+
+      .bank-word {
+        font-size: 0.64rem;
+      }
+
+      .tiles {
+        gap: 3px;
+      }
+
+      .tile {
+        width: 24px;
+        height: 32px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+      }
+
+      .tile small {
+        right: 3px;
+        bottom: 2px;
+        font-size: 0.42rem;
+      }
+
+      .board-wrap {
+        padding: 4px;
+        border-radius: 14px;
+      }
+
+      .board {
+        gap: 2px;
+      }
+
+      .cell {
+        border-radius: 7px;
+        font-size: 0.64rem;
+      }
+
+      .action-row {
+        gap: 4px;
+        margin-top: 8px;
+      }
+
+      .action-row button {
+        padding: 8px 4px;
+        border-radius: 10px;
+        font-size: 0.68rem;
+      }
+
+      .banner,
+      .rule-note,
+      .log-entry {
+        font-size: 0.72rem;
+      }
+
+      .log {
+        max-height: 96px;
+      }
+
+      .modal {
+        padding: 18px;
+        border-radius: 20px;
+      }
+
+      .modal h2 {
+        font-size: 1.5rem;
       }
     }
 
