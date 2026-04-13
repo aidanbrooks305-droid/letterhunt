@@ -591,17 +591,38 @@
         border-radius: 16px;
         -webkit-overflow-scrolling: touch;
         overflow: hidden;
+        background: #fbfcfd;
       }
 
       .board {
-        gap: 1px;
+        gap: 0;
         justify-content: center;
       }
 
       .cell {
-        border-radius: 4px;
-        border-width: 0.75px;
+        border-radius: 0;
+        border-width: 1px;
+        border-color: rgba(15, 118, 110, 0.12);
+        background: rgba(255, 255, 255, 0.96);
         font-size: 0.62rem;
+        box-shadow: none;
+      }
+
+      .cell.valid {
+        border-color: rgba(15, 118, 110, 0.22);
+        background: rgba(15, 118, 110, 0.08);
+      }
+
+      .cell.filled,
+      .cell.negative {
+        border-radius: 4px;
+        border-width: 1px;
+        z-index: 1;
+      }
+
+      .cell.selected-cell {
+        box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.18);
+        z-index: 2;
       }
 
       .action-row {
@@ -737,9 +758,18 @@
       }
 
       .cell {
+        border-radius: 0;
+        border-width: 1px;
+        font-size: 0.48rem;
+      }
+
+      .cell.filled,
+      .cell.negative {
         border-radius: 3px;
-        border-width: 0.5px;
-        font-size: 0.5rem;
+      }
+
+      .cell.selected-cell {
+        box-shadow: 0 0 0 1.5px rgba(15, 118, 110, 0.18);
       }
 
       .action-row {
