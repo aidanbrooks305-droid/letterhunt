@@ -457,6 +457,64 @@
       line-height: 1.6;
     }
 
+    .intro-modal {
+      width: min(560px, 100%);
+    }
+
+    .intro-words {
+      display: grid;
+      gap: 12px;
+      margin: 0 0 18px;
+    }
+
+    .intro-word {
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #111827, #1f2937);
+      color: #ffffff;
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-align: center;
+      animation: intro-pop 360ms cubic-bezier(0.2, 0.75, 0.24, 1) both;
+    }
+
+    .intro-caption {
+      margin: 0 0 16px;
+      color: var(--text);
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .intro-steps {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .intro-step {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #fafbfc;
+      color: var(--text);
+      line-height: 1.45;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    @keyframes intro-pop {
+      from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
     @media (max-width: 1080px) {
       :root {
         --tile: 54px;
@@ -757,6 +815,17 @@
         font-size: 1.35rem;
       }
 
+      .intro-word {
+        padding: 11px 12px;
+        border-radius: 12px;
+        font-size: 0.96rem;
+      }
+
+      .intro-caption,
+      .intro-step {
+        font-size: 0.72rem;
+      }
+
       .section h2,
       .section h3 {
         margin-bottom: 8px;
@@ -857,14 +926,15 @@
     </div>
   </div>
 
-  <div id="intro-overlay" class="overlay show" aria-hidden="false">
-    <div class="modal">
-      <h2>How It Works</h2>
-      <p>Three quick things before you start:</p>
-      <div class="log" style="max-height: none; margin-bottom: 18px;">
-        <div class="log-entry">Tap a letter in the bank, then tap an empty grid square to place it. Tap a placed tile, then tap a new empty square to move it.</div>
-        <div class="log-entry">The source words that give you letters are banned as playable words, and you also cannot reuse close derivatives of them.</div>
-        <div class="log-entry">Valid words score positive points. Invalid runs turn red and score negatively until you fix them.</div>
+  <div id="intro-overlay" class="overlay" aria-hidden="true">
+    <div class="modal intro-modal">
+      <h2>Your Words</h2>
+      <div id="intro-words" class="intro-words"></div>
+      <p class="intro-caption">Use the letters in these words to form a crossword.</p>
+      <div class="intro-steps">
+        <div class="intro-step">1. Tap a letter in the bank, then tap the grid to place.</div>
+        <div class="intro-step">2. You can't use the bank words as your own.</div>
+        <div class="intro-step">3. Make words. Get points. Invalid words lose points.</div>
       </div>
       <div class="action-row">
         <button id="start-playing" class="primary">Start Playing</button>
@@ -877,7 +947,6 @@
     const BOARD_ROWS = 11;
     const INITIAL_BOARD_COLS = 11;
     const STORAGE_KEY = "letter-hunt-save-v1";
-    const INTRO_STORAGE_KEY = "letter-hunt-intro-seen-v1";
     const ALLOWED_TWO_LETTER_WORDS = new Set([
       "am", "an", "as", "at",
       "be", "by", "do", "go",
@@ -941,6 +1010,7 @@
     const statusEl = document.getElementById("status");
     const overlayEl = document.getElementById("overlay");
     const introOverlayEl = document.getElementById("intro-overlay");
+    const introWordsEl = document.getElementById("intro-words");
     const finalSummaryEl = document.getElementById("final-summary");
 
     document.getElementById("clear-selection").addEventListener("click", () => {
@@ -963,14 +1033,7 @@
     });
 
     document.getElementById("start-playing").addEventListener("click", () => {
-      introOverlayEl.classList.remove("show");
-      introOverlayEl.setAttribute("aria-hidden", "true");
-      try {
-        localStorage.setItem(INTRO_STORAGE_KEY, "1");
-      } catch (error) {
-        // Ignore storage failures; the intro can reappear if storage is unavailable.
-      }
-      window.scrollTo(0, 0);
+      closeRoundIntro();
     });
 
     window.addEventListener("pagehide", () => {
@@ -1079,6 +1142,7 @@
       state.boardAnalysis = analyzeBoard();
       pushLog("Round started with three source words. Place any letter anywhere, or move placed letters to reshape the board.");
       render();
+      openRoundIntro();
     }
 
     function persistState() {
@@ -1151,21 +1215,27 @@
       }
     }
 
-    function maybeShowIntro() {
-      let seen = false;
-      try {
-        seen = localStorage.getItem(INTRO_STORAGE_KEY) === "1";
-      } catch (error) {
-        seen = false;
-      }
+    function renderRoundIntroWords() {
+      introWordsEl.innerHTML = "";
+      state.sourceWords.forEach((source, index) => {
+        const wordEl = document.createElement("div");
+        wordEl.className = "intro-word";
+        wordEl.textContent = source.word.toUpperCase();
+        wordEl.style.animationDelay = `${index * 150}ms`;
+        introWordsEl.appendChild(wordEl);
+      });
+    }
 
-      if (seen) {
-        introOverlayEl.classList.remove("show");
-        introOverlayEl.setAttribute("aria-hidden", "true");
-      } else {
-        introOverlayEl.classList.add("show");
-        introOverlayEl.setAttribute("aria-hidden", "false");
-      }
+    function openRoundIntro() {
+      renderRoundIntroWords();
+      introOverlayEl.classList.add("show");
+      introOverlayEl.setAttribute("aria-hidden", "false");
+    }
+
+    function closeRoundIntro() {
+      introOverlayEl.classList.remove("show");
+      introOverlayEl.setAttribute("aria-hidden", "true");
+      window.scrollTo(0, 0);
     }
 
     function pushLog(message) {
@@ -1682,7 +1752,6 @@
     } else {
       render();
     }
-    maybeShowIntro();
     window.scrollTo(0, 0);
   </script>
 </body>
