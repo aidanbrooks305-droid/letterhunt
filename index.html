@@ -1349,7 +1349,7 @@
       "it", "me", "my", "no",
       "of", "on", "or", "so",
       "pi", "to", "up", "us", "we",
-      "yi", "xi",
+      "yi", "xi", "zi",
     ]);
     const BLOCKED_WORDS = new Set([
       "cunt",
@@ -1422,8 +1422,8 @@
     };
 
     const sharedWordsFromUrl = getSharedWordsFromUrl();
-    const activeShareWords = sharedWordsFromUrl ? [...sharedWordsFromUrl] : null;
-    const activeShareKey = activeShareWords ? buildShareKey(activeShareWords) : null;
+    let currentSharedWords = sharedWordsFromUrl ? [...sharedWordsFromUrl] : null;
+    let currentShareKey = currentSharedWords ? buildShareKey(currentSharedWords) : null;
 
     const boardEl = document.getElementById("board");
     const boardWrapEl = document.querySelector(".board-wrap");
@@ -1457,12 +1457,13 @@
     });
 
     document.getElementById("new-game").addEventListener("click", () => {
-      startGame(activeShareWords);
+      clearSharedRoundContext();
+      startGame();
     });
 
     document.getElementById("play-again").addEventListener("click", () => {
       overlayEl.classList.remove("show");
-      startGame(activeShareWords);
+      startGame(currentSharedWords);
     });
 
     document.getElementById("share-round-final").addEventListener("click", () => {
@@ -1621,6 +1622,86 @@
       return url.toString();
     }
 
+    function clearSharedRoundContext() {
+      currentSharedWords = null;
+      currentShareKey = null;
+
+      try {
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has(SHARE_PARAM)) return;
+        url.searchParams.delete(SHARE_PARAM);
+        window.history.replaceState({}, "", url.toString());
+      } catch (error) {
+        // Ignore URL rewrite failures so starting a new random round still works.
+      }
+    }
+
+    function getRenderedShareTiles() {
+      return Array.from(boardEl.querySelectorAll(".cell.filled")).map((cell) => {
+        const styles = window.getComputedStyle(cell);
+        return {
+          row: Number(cell.dataset.row),
+          col: Number(cell.dataset.col),
+          negative: cell.classList.contains("negative"),
+          boxShadow: cell.style.boxShadow || styles.boxShadow || "",
+        };
+      });
+    }
+
+    function shareEmojiForTile(tile) {
+      if (tile.negative) return "🔴";
+
+      const shadow = tile.boxShadow.toLowerCase();
+      const mappings = [
+        { match: ["250, 204, 21", "#facc15"], emoji: "🟡" },
+        { match: ["74, 222, 128", "#4ade80"], emoji: "🟢" },
+        { match: ["161, 98, 7", "#a16207"], emoji: "🟤" },
+        { match: ["244, 114, 182", "#f472b6"], emoji: "🟣" },
+        { match: ["168, 85, 247", "#a855f7"], emoji: "🟣" },
+        { match: ["99, 102, 241", "#6366f1"], emoji: "🔵" },
+        { match: ["125, 211, 252", "#7dd3fc"], emoji: "🔵" },
+        { match: ["30, 58, 138", "#1e3a8a"], emoji: "🔵" },
+        { match: ["96, 165, 250", "#60a5fa"], emoji: "🔵" },
+        { match: ["45, 212, 191", "#2dd4bf"], emoji: "🔵" },
+      ];
+
+      const found = mappings.find((entry) => entry.match.some((token) => shadow.includes(token)));
+      return found ? found.emoji : "⚫";
+    }
+
+    function buildShareSnakeEmoji() {
+      const tiles = getRenderedShareTiles();
+      if (!tiles.length) return "";
+
+      const minRow = Math.min(...tiles.map((tile) => tile.row));
+      const maxRow = Math.max(...tiles.map((tile) => tile.row));
+      const minCol = Math.min(...tiles.map((tile) => tile.col));
+      const maxCol = Math.max(...tiles.map((tile) => tile.col));
+      const headTile = chooseFinalSnakeHead(tiles);
+      const tileMap = new Map(
+        tiles.map((tile) => [`${tile.row}:${tile.col}`, tile])
+      );
+
+      const lines = [];
+      for (let row = minRow; row <= maxRow; row += 1) {
+        let line = "";
+        for (let col = minCol; col <= maxCol; col += 1) {
+          const key = `${row}:${col}`;
+          if (!tileMap.has(key)) {
+            line += "　";
+            continue;
+          }
+          const tile = tileMap.get(key);
+          line += tile === headTile ? "😛" : shareEmojiForTile(tile);
+        }
+        if (line.trim()) {
+          lines.push(line);
+        }
+      }
+
+      return lines.join("\n");
+    }
+
     async function shareRound() {
       const shareWords = getShareWordsForCurrentRound();
       if (!shareWords) {
@@ -1629,7 +1710,10 @@
       }
 
       const shareUrl = buildShareUrl(shareWords);
-      const shareText = `Play my Letter Hunt round with these words: ${shareWords.map((word) => word.toUpperCase()).join(", ")}.`;
+      const scoreLine = `Play my Letter Hunt round with these words: ${shareWords.map((word) => word.toUpperCase()).join(", ")}. See if you can beat my score: ${formatScore(state.score)}`;
+      const snakeText = buildShareSnakeEmoji();
+      const shareText = snakeText ? `${scoreLine}\n\n${snakeText}` : scoreLine;
+      const clipboardText = `${shareText}\n\n${shareUrl}`;
 
       try {
         if (navigator.share) {
@@ -1643,15 +1727,15 @@
         }
 
         if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(shareUrl);
-          statusEl.innerHTML = "<strong>Share link copied.</strong> Anyone opening it gets the same starting words.";
+          await navigator.clipboard.writeText(clipboardText);
+          statusEl.innerHTML = "<strong>Share text copied.</strong> Anyone opening the link gets the same starting words.";
           return;
         }
       } catch (error) {
         if (error?.name === "AbortError") return;
       }
 
-      statusEl.innerHTML = `<strong>Share this link.</strong> ${shareUrl}`;
+      statusEl.innerHTML = `<strong>Share this challenge.</strong> ${clipboardText}`;
     }
 
     function availableLetterCount() {
@@ -2743,9 +2827,9 @@
       persistState();
     }
 
-    if (activeShareWords) {
-      if (!restoreSavedGame(activeShareKey)) {
-        startGame(activeShareWords);
+    if (currentSharedWords) {
+      if (!restoreSavedGame(currentShareKey)) {
+        startGame(currentSharedWords);
       } else {
         render();
         maybeShowOneLetterPrompt();
