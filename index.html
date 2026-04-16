@@ -1448,6 +1448,7 @@
 
   <div id="drag-ghost" class="drag-ghost" aria-hidden="true"></div>
 
+  <script src="./tutorial-images.js"></script>
   <script src="./words.js"></script>
   <script>
     const BOARD_ROWS = 10;
@@ -1488,35 +1489,35 @@
     ];
     const INTRO_SLIDES = [
       {
-        image: "./tutorial-images/1.jpg",
+        image: (window.TUTORIAL_IMAGE_DATA && window.TUTORIAL_IMAGE_DATA["1"]) || "./tutorial-images/1.jpg",
         caption: "Tap or drag a letter to the grid to start.",
       },
       {
-        image: "./tutorial-images/2.jpg",
+        image: (window.TUTORIAL_IMAGE_DATA && window.TUTORIAL_IMAGE_DATA["2"]) || "./tutorial-images/2.jpg",
         caption: "Use the letters in your bank to create words.",
       },
       {
-        image: "./tutorial-images/3.jpg",
+        image: (window.TUTORIAL_IMAGE_DATA && window.TUTORIAL_IMAGE_DATA["3"]) || "./tutorial-images/3.jpg",
         caption: "You get points when you make a crossword.",
       },
       {
-        image: "./tutorial-images/4.jpg",
+        image: (window.TUTORIAL_IMAGE_DATA && window.TUTORIAL_IMAGE_DATA["4"]) || "./tutorial-images/4.jpg",
         caption: "Keep going! But if you have a letter you want to trade, you can trade it at any time for a new word.",
       },
       {
-        image: "./tutorial-images/5.jpg",
+        image: (window.TUTORIAL_IMAGE_DATA && window.TUTORIAL_IMAGE_DATA["5"]) || "./tutorial-images/5.jpg",
         caption: "",
       },
       {
-        image: "./tutorial-images/6.jpg",
+        image: (window.TUTORIAL_IMAGE_DATA && window.TUTORIAL_IMAGE_DATA["6"]) || "./tutorial-images/6.jpg",
         caption: "Yay, you got a new random word to work with.",
       },
       {
-        image: "./tutorial-images/7.jpg",
+        image: (window.TUTORIAL_IMAGE_DATA && window.TUTORIAL_IMAGE_DATA["7"]) || "./tutorial-images/7.jpg",
         caption: "Keep going, you're almost there! Make sure to hit submit before you finish!",
       },
       {
-        image: "./tutorial-images/8.jpg",
+        image: (window.TUTORIAL_IMAGE_DATA && window.TUTORIAL_IMAGE_DATA["8"]) || "./tutorial-images/8.jpg",
         caption: "Nice work! Share with friends!",
       },
     ];
