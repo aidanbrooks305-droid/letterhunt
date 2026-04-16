@@ -196,14 +196,6 @@
       background-clip: padding-box;
     }
 
-    .cell.seed::after {
-      content: "•";
-      position: absolute;
-      color: rgba(244, 114, 182, 0.5);
-      font-size: 1.3rem;
-      inset: auto;
-    }
-
     .cell.valid {
       border-color: #c6d1db;
       background: #ffffff;
@@ -1285,6 +1277,7 @@
       <p id="final-summary"></p>
       <div class="action-row">
         <button id="play-again" class="primary">Play Again</button>
+        <button id="share-round-final" class="ghost">Share Round</button>
       </div>
     </div>
   </div>
@@ -1470,6 +1463,10 @@
     document.getElementById("play-again").addEventListener("click", () => {
       overlayEl.classList.remove("show");
       startGame(activeShareWords);
+    });
+
+    document.getElementById("share-round-final").addEventListener("click", () => {
+      shareRound();
     });
 
     document.getElementById("start-playing").addEventListener("click", () => {
@@ -1741,42 +1738,33 @@
       );
     }
 
-    function buildSnakePath(length) {
-      const masterPath = [
-        { row: 4, col: 1 },
-        { row: 4, col: 2 },
-        { row: 4, col: 3 },
-        { row: 4, col: 4 },
-        { row: 3, col: 4 },
-        { row: 2, col: 4 },
-        { row: 2, col: 3 },
-        { row: 2, col: 2 },
-        { row: 2, col: 1 },
-        { row: 1, col: 1 },
-        { row: 0, col: 1 },
-        { row: 0, col: 2 },
-        { row: 0, col: 3 },
-        { row: 0, col: 4 },
-        { row: 0, col: 5 },
-        { row: 1, col: 5 },
-        { row: 2, col: 5 },
-        { row: 3, col: 5 },
-      ];
+    function chooseFinalSnakeHead(tiles) {
+      const tileKeys = new Set(tiles.map((tile) => `${tile.row}:${tile.col}`));
+      const degreeFor = (tile) => [
+        [tile.row - 1, tile.col],
+        [tile.row + 1, tile.col],
+        [tile.row, tile.col - 1],
+        [tile.row, tile.col + 1],
+      ].filter(([row, col]) => tileKeys.has(`${row}:${col}`)).length;
 
-      return {
-        cols: 7,
-        positions: masterPath.slice(0, Math.max(1, Math.min(length, masterPath.length))),
-      };
+      const edgeTiles = tiles.filter((tile) => degreeFor(tile) <= 1);
+      const candidates = edgeTiles.length ? edgeTiles : tiles;
+
+      return [...candidates].sort((a, b) => {
+        if (b.col !== a.col) return b.col - a.col;
+        return b.row - a.row;
+      })[0];
     }
 
     function renderFinalSnake() {
       if (!finalSnakeEl) return;
 
       const renderedTiles = Array.from(boardEl.querySelectorAll(".cell.filled"))
-        .slice(0, 18)
         .map((cell) => {
           const styles = window.getComputedStyle(cell);
           return {
+            row: Number(cell.dataset.row),
+            col: Number(cell.dataset.col),
             background: styles.background,
             border: styles.border,
             boxShadow: styles.boxShadow,
@@ -1786,22 +1774,51 @@
       const snakeTiles = renderedTiles.length
         ? renderedTiles
         : Array.from({ length: 6 }, () => ({
+            row: 0,
+            col: 0,
             background: "linear-gradient(180deg, #111827, #1f2937)",
             border: "1px solid #111827",
             boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.18)",
           }));
+      const minRow = Math.min(...snakeTiles.map((tile) => tile.row));
+      const maxRow = Math.max(...snakeTiles.map((tile) => tile.row));
+      const minCol = Math.min(...snakeTiles.map((tile) => tile.col));
+      const maxCol = Math.max(...snakeTiles.map((tile) => tile.col));
+      const rows = Math.max(1, maxRow - minRow + 1);
+      const cols = Math.max(1, maxCol - minCol + 1);
+      const viewportIsPhone = window.innerWidth <= 430;
+      const viewportIsTablet = window.innerWidth <= 700;
+      const snakeGap = viewportIsPhone ? 5 : viewportIsTablet ? 6 : 8;
+      const maxWidth = viewportIsPhone ? 260 : viewportIsTablet ? 320 : 420;
+      const maxHeight = viewportIsPhone ? 180 : viewportIsTablet ? 220 : 250;
+      const snakeSize = Math.max(
+        22,
+        Math.min(
+          44,
+          Math.floor((maxWidth - snakeGap * Math.max(0, cols - 1)) / cols),
+          Math.floor((maxHeight - snakeGap * Math.max(0, rows - 1)) / rows)
+        )
+      );
+      const headTile = chooseFinalSnakeHead(snakeTiles);
+      const orderedTiles = [
+        ...snakeTiles
+          .filter((tile) => tile !== headTile)
+          .sort((a, b) => (a.row - b.row) || (a.col - b.col)),
+        headTile,
+      ];
 
-      const { cols, positions } = buildSnakePath(snakeTiles.length);
       finalSnakeEl.innerHTML = "";
+      finalSnakeEl.style.setProperty("--snake-size", `${snakeSize}px`);
+      finalSnakeEl.style.setProperty("--snake-gap", `${snakeGap}px`);
       finalSnakeEl.style.gridTemplateColumns = `repeat(${cols}, var(--snake-size))`;
+      finalSnakeEl.style.gridTemplateRows = `repeat(${rows}, var(--snake-size))`;
 
-      positions.forEach((position, index) => {
-        const tileStyle = snakeTiles[index];
+      orderedTiles.forEach((tileStyle, index) => {
         const segment = document.createElement("div");
-        const isHead = index === positions.length - 1;
+        const isHead = tileStyle === headTile;
         segment.className = `snake-segment${isHead ? " head" : ""}`;
-        segment.style.gridColumn = `${position.col + 1}`;
-        segment.style.gridRow = `${position.row + 1}`;
+        segment.style.gridColumn = `${tileStyle.col - minCol + 1}`;
+        segment.style.gridRow = `${tileStyle.row - minRow + 1}`;
         segment.style.background = tileStyle.background;
         segment.style.border = tileStyle.border;
         segment.style.boxShadow = tileStyle.boxShadow;
@@ -2161,11 +2178,40 @@
       return state.sourceWords.some((source) => source.word === lower);
     }
 
+    function isBaseDictionaryWord(word) {
+      if (!word) return false;
+      if (word.length === 1) return word === "a" || word === "i";
+      if (word.length === 2) return ALLOWED_TWO_LETTER_WORDS.has(word);
+      return dictionary.has(word);
+    }
+
+    function isRegularPluralWord(word) {
+      const lower = word.toLowerCase();
+      if (lower.length <= 2 || !lower.endsWith("s") || lower.endsWith("ss")) return false;
+
+      const candidates = [];
+      if (lower.endsWith("ies") && lower.length > 3) {
+        candidates.push(lower.slice(0, -3) + "y");
+      }
+      if (lower.endsWith("es") && lower.length > 2) {
+        candidates.push(lower.slice(0, -1));
+        candidates.push(lower.slice(0, -2));
+      }
+      candidates.push(lower.slice(0, -1));
+
+      const seen = new Set();
+      return candidates.some((candidate) => {
+        if (!candidate || seen.has(candidate)) return false;
+        seen.add(candidate);
+        return isBaseDictionaryWord(candidate);
+      });
+    }
+
     function isDictionaryWord(word) {
       const lower = word.toLowerCase();
       if (lower.length === 1) return lower === "a" || lower === "i";
       if (lower.length === 2) return ALLOWED_TWO_LETTER_WORDS.has(lower);
-      return dictionary.has(lower);
+      return dictionary.has(lower) || isRegularPluralWord(lower);
     }
 
     function isPlayableWord(word) {
