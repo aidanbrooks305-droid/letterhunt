@@ -1082,6 +1082,16 @@
     </div>
   </div>
 
+  <div id="submit-warning-overlay" class="overlay" aria-hidden="true">
+    <div class="modal intro-modal">
+      <h2>HOLD YOUR HORSES</h2>
+      <p>You can't submit until you used every letter.</p>
+      <div class="action-row">
+        <button id="close-submit-warning" class="primary">Keep Playing</button>
+      </div>
+    </div>
+  </div>
+
   <div id="drag-ghost" class="drag-ghost" aria-hidden="true"></div>
 
   <script src="./words.js"></script>
@@ -1114,6 +1124,11 @@
       { edge: "#f472b6", glow: "rgba(244, 114, 182, 0.34)" },
       { edge: "#4ade80", glow: "rgba(74, 222, 128, 0.34)" },
       { edge: "#2dd4bf", glow: "rgba(45, 212, 191, 0.34)" },
+      { edge: "#a16207", glow: "rgba(161, 98, 7, 0.34)" },
+      { edge: "#a855f7", glow: "rgba(168, 85, 247, 0.34)" },
+      { edge: "#6366f1", glow: "rgba(99, 102, 241, 0.34)" },
+      { edge: "#7dd3fc", glow: "rgba(125, 211, 252, 0.34)" },
+      { edge: "#1e3a8a", glow: "rgba(30, 58, 138, 0.34)" },
     ];
     const LETTER_VALUES = {
       a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1, j: 8, k: 5, l: 1, m: 3,
@@ -1172,6 +1187,7 @@
     const introOverlayEl = document.getElementById("intro-overlay");
     const lastLetterOverlayEl = document.getElementById("last-letter-overlay");
     const tradeOverlayEl = document.getElementById("trade-overlay");
+    const submitWarningOverlayEl = document.getElementById("submit-warning-overlay");
     const introWordsEl = document.getElementById("intro-words");
     const finalSummaryEl = document.getElementById("final-summary");
     const submitBoardButton = document.getElementById("submit-board");
@@ -1211,6 +1227,10 @@
 
     document.getElementById("cancel-trade").addEventListener("click", () => {
       closeTradeWarning();
+    });
+
+    document.getElementById("close-submit-warning").addEventListener("click", () => {
+      closeSubmitWarning();
     });
 
     window.addEventListener("pagehide", () => {
@@ -1339,7 +1359,13 @@
     }
 
     function beginDrag(payload, event) {
-      if (overlayEl.classList.contains("show") || introOverlayEl.classList.contains("show") || lastLetterOverlayEl.classList.contains("show") || tradeOverlayEl.classList.contains("show")) {
+      if (
+        overlayEl.classList.contains("show")
+        || introOverlayEl.classList.contains("show")
+        || lastLetterOverlayEl.classList.contains("show")
+        || tradeOverlayEl.classList.contains("show")
+        || submitWarningOverlayEl.classList.contains("show")
+      ) {
         return;
       }
       dragState = {
@@ -1573,6 +1599,17 @@
     function closeTradeWarning() {
       tradeOverlayEl.classList.remove("show");
       tradeOverlayEl.setAttribute("aria-hidden", "true");
+    }
+
+    function openSubmitWarning() {
+      submitWarningOverlayEl.classList.add("show");
+      submitWarningOverlayEl.setAttribute("aria-hidden", "false");
+    }
+
+    function closeSubmitWarning() {
+      submitWarningOverlayEl.classList.remove("show");
+      submitWarningOverlayEl.setAttribute("aria-hidden", "true");
+      window.scrollTo(0, 0);
     }
 
     function maybeShowOneLetterPrompt() {
@@ -2022,7 +2059,7 @@
 
     function submitBoard() {
       if (!canSubmitBoard()) {
-        statusEl.innerHTML = "<strong>Not yet.</strong> Place every usable letter on the board before you can submit.";
+        openSubmitWarning();
         return;
       }
       state.selectedBankId = null;
