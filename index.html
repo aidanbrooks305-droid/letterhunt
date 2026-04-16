@@ -19,7 +19,7 @@
       --danger-soft: #fee4e2;
       --shadow: 0 14px 40px rgba(17, 24, 39, 0.08);
       --radius: 20px;
-      --tile: 52px;
+      --tile: 56px;
       --storage-key: "letter-hunt-save-v1";
     }
 
@@ -139,8 +139,8 @@
 
     .board {
       display: grid;
-      grid-template-columns: repeat(13, var(--tile));
-      grid-template-rows: repeat(13, var(--tile));
+      grid-template-columns: repeat(10, var(--tile));
+      grid-template-rows: repeat(10, var(--tile));
       gap: 6px;
       justify-content: center;
       min-width: fit-content;
@@ -519,6 +519,10 @@
       box-shadow: 0 32px 80px rgba(17, 24, 39, 0.18);
     }
 
+    .final-modal {
+      width: min(620px, 100%);
+    }
+
     .modal h2 {
       margin: 0 0 10px;
       font-size: 2rem;
@@ -579,20 +583,30 @@
 
     .countdown-lines {
       display: grid;
-      gap: 12px;
+      gap: 8px;
       margin-bottom: 18px;
+      text-align: center;
     }
 
     .countdown-line {
-      padding: 14px 18px;
-      border-radius: 18px;
-      background: linear-gradient(180deg, var(--accent), #0b5f59);
-      color: #ffffff;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--text);
       font-size: 1.06rem;
       font-weight: 800;
-      letter-spacing: 0.02em;
+      letter-spacing: -0.01em;
       text-align: center;
       animation: intro-pop 360ms cubic-bezier(0.2, 0.75, 0.24, 1) both;
+    }
+
+    .countdown-line:first-child {
+      font-size: 1.5rem;
+    }
+
+    .countdown-line:not(:first-child) {
+      color: var(--muted);
+      font-weight: 700;
     }
 
     .warning-box {
@@ -620,6 +634,127 @@
       color: #7a271a;
     }
 
+    .snake-stage {
+      margin: 6px 0 20px;
+      padding: 18px;
+      border-radius: 24px;
+      border: 1px solid #f1e7ef;
+      background:
+        radial-gradient(circle at top, rgba(244, 114, 182, 0.12), transparent 42%),
+        linear-gradient(180deg, #fff9fc 0%, #ffffff 100%);
+      overflow: hidden;
+    }
+
+    .snake-grid {
+      --snake-size: 44px;
+      --snake-gap: 8px;
+      display: grid;
+      gap: var(--snake-gap);
+      justify-content: center;
+      align-content: center;
+      min-height: 160px;
+    }
+
+    .snake-segment {
+      width: var(--snake-size);
+      height: var(--snake-size);
+      border-radius: 14px;
+      background: linear-gradient(180deg, #111827, #1f2937);
+      border: 1px solid #111827;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 0 0 3px var(--snake-edge),
+        0 10px 22px var(--snake-glow);
+      position: relative;
+      opacity: 0;
+      transform: scale(0.4) rotate(-10deg);
+      animation: snake-pop 420ms cubic-bezier(0.2, 0.8, 0.22, 1) forwards;
+      animation-delay: var(--snake-delay, 0ms);
+    }
+
+    .snake-segment::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+      pointer-events: none;
+    }
+
+    .snake-segment.head {
+      transform-origin: center;
+      animation:
+        snake-pop 420ms cubic-bezier(0.2, 0.8, 0.22, 1) forwards,
+        snake-head-bob 2200ms ease-in-out infinite;
+      animation-delay: var(--snake-delay, 0ms), calc(var(--snake-delay, 0ms) + 420ms);
+    }
+
+    .snake-face {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      z-index: 1;
+    }
+
+    .snake-eye {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #ffffff;
+      position: relative;
+      box-shadow: 0 1px 0 rgba(17, 24, 39, 0.08);
+    }
+
+    .snake-eye.googly::after {
+      content: "";
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: #111827;
+      left: 3px;
+      top: 4px;
+      animation: googly-jiggle 1800ms ease-in-out infinite;
+    }
+
+    .snake-eye.wink {
+      background: transparent;
+      box-shadow: none;
+      overflow: hidden;
+    }
+
+    .snake-eye.wink::before,
+    .snake-eye.wink::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      margin: auto;
+      background: #111827;
+      border-radius: 999px;
+      transform-origin: center;
+    }
+
+    .snake-eye.wink::before {
+      top: 5px;
+      width: 12px;
+      height: 2px;
+      animation: snake-wink-line 2200ms ease-in-out infinite;
+    }
+
+    .snake-eye.wink::after {
+      top: 1px;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      border: 2px solid #111827;
+      background: transparent;
+      animation: snake-wink-open 2200ms ease-in-out infinite;
+    }
+
     @keyframes intro-pop {
       from {
         opacity: 0;
@@ -632,9 +767,77 @@
       }
     }
 
+    @keyframes snake-pop {
+      from {
+        opacity: 0;
+        transform: scale(0.35) translateY(12px) rotate(-10deg);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotate(0deg);
+      }
+    }
+
+    @keyframes snake-head-bob {
+      0%, 100% {
+        transform: translateY(0) rotate(0deg);
+      }
+
+      50% {
+        transform: translateY(-3px) rotate(2deg);
+      }
+    }
+
+    @keyframes googly-jiggle {
+      0%, 100% {
+        transform: translate(0, 0);
+      }
+
+      20% {
+        transform: translate(1px, -1px);
+      }
+
+      40% {
+        transform: translate(-1px, 1px);
+      }
+
+      60% {
+        transform: translate(1px, 1px);
+      }
+
+      80% {
+        transform: translate(-1px, 0);
+      }
+    }
+
+    @keyframes snake-wink-line {
+      0%, 65%, 100% {
+        opacity: 0;
+        transform: scaleX(0.5);
+      }
+
+      70%, 92% {
+        opacity: 1;
+        transform: scaleX(1);
+      }
+    }
+
+    @keyframes snake-wink-open {
+      0%, 65%, 100% {
+        opacity: 1;
+        transform: scaleY(1);
+      }
+
+      70%, 92% {
+        opacity: 0;
+        transform: scaleY(0.15);
+      }
+    }
+
     @media (max-width: 1080px) {
       :root {
-        --tile: 54px;
+        --tile: 58px;
       }
 
       .main-grid {
@@ -652,7 +855,7 @@
 
     @media (max-width: 700px) {
       :root {
-        --tile: 33px;
+        --tile: 36px;
       }
 
       body {
@@ -765,14 +968,14 @@
         z-index: 2;
       }
 
-      .action-row {
+      .board-panel > .action-row {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 6px;
         margin-top: 10px;
       }
 
-      .action-row button {
+      .board-panel > .action-row button {
         padding: 9px 6px;
         border-radius: 12px;
         font-size: 0.78rem;
@@ -803,11 +1006,17 @@
       h1 {
         font-size: 1.8rem;
       }
+
+      .snake-grid {
+        --snake-size: 38px;
+        --snake-gap: 6px;
+        min-height: 138px;
+      }
     }
 
     @media (max-width: 430px) {
       :root {
-        --tile: 29px;
+        --tile: 32px;
       }
 
       .shell {
@@ -898,12 +1107,12 @@
         box-shadow: 0 0 0 1.5px rgba(15, 118, 110, 0.18);
       }
 
-      .action-row {
+      .board-panel > .action-row {
         gap: 4px;
         margin-top: 6px;
       }
 
-      .action-row button {
+      .board-panel > .action-row button {
         padding: 6px 3px;
         border-radius: 9px;
         font-size: 0.62rem;
@@ -928,6 +1137,16 @@
         border-radius: 18px;
       }
 
+      .snake-stage {
+        padding: 14px;
+      }
+
+      .snake-grid {
+        --snake-size: 32px;
+        --snake-gap: 5px;
+        min-height: 116px;
+      }
+
       .modal h2 {
         font-size: 1.35rem;
       }
@@ -942,6 +1161,28 @@
       .intro-step,
       .countdown-line {
         font-size: 0.72rem;
+      }
+
+      .snake-eye {
+        width: 10px;
+        height: 10px;
+      }
+
+      .snake-eye.googly::after {
+        width: 4px;
+        height: 4px;
+        left: 3px;
+        top: 3px;
+      }
+
+      .snake-eye.wink::before {
+        top: 4px;
+        width: 10px;
+      }
+
+      .snake-eye.wink::after {
+        width: 8px;
+        height: 8px;
       }
 
       .section h2,
@@ -1002,6 +1243,7 @@
       <div class="action-row">
         <button id="submit-board" class="submit" aria-disabled="true">SUBMIT</button>
         <button id="trade-letter" class="danger">Trade Selected Letter</button>
+        <button id="share-round" class="ghost">Share Round</button>
         <button id="new-game" class="primary">New Game</button>
       </div>
 
@@ -1035,8 +1277,11 @@
   </div>
 
   <div id="overlay" class="overlay" aria-hidden="true">
-    <div class="modal">
+    <div class="modal final-modal">
       <h2>Round Complete</h2>
+      <div class="snake-stage">
+        <div id="final-snake" class="snake-grid" aria-hidden="true"></div>
+      </div>
       <p id="final-summary"></p>
       <div class="action-row">
         <button id="play-again" class="primary">Play Again</button>
@@ -1100,16 +1345,17 @@
 
   <script src="./words.js"></script>
   <script>
-    const BOARD_ROWS = 11;
-    const INITIAL_BOARD_COLS = 11;
+    const BOARD_ROWS = 10;
+    const INITIAL_BOARD_COLS = 10;
     const STORAGE_KEY = "letter-hunt-save-v1";
+    const SHARE_PARAM = "words";
     const ALLOWED_TWO_LETTER_WORDS = new Set([
       "am", "an", "as", "at",
       "be", "by", "do", "go",
       "he", "if", "in", "is",
       "it", "me", "my", "no",
       "of", "on", "or", "so",
-      "to", "up", "us", "we",
+      "pi", "to", "up", "us", "we",
       "yi", "xi",
     ]);
     const BLOCKED_WORDS = new Set([
@@ -1179,7 +1425,12 @@
       boardAnalysis: null,
       tradePenaltyTotal: 0,
       oneLetterPromptShown: false,
+      shareKey: null,
     };
+
+    const sharedWordsFromUrl = getSharedWordsFromUrl();
+    const activeShareWords = sharedWordsFromUrl ? [...sharedWordsFromUrl] : null;
+    const activeShareKey = activeShareWords ? buildShareKey(activeShareWords) : null;
 
     const boardEl = document.getElementById("board");
     const boardWrapEl = document.querySelector(".board-wrap");
@@ -1194,6 +1445,7 @@
     const submitWarningOverlayEl = document.getElementById("submit-warning-overlay");
     const introWordsEl = document.getElementById("intro-words");
     const finalSummaryEl = document.getElementById("final-summary");
+    const finalSnakeEl = document.getElementById("final-snake");
     const submitBoardButton = document.getElementById("submit-board");
     const dragGhostEl = document.getElementById("drag-ghost");
     let dragState = null;
@@ -1207,13 +1459,17 @@
       openTradeWarning();
     });
 
+    document.getElementById("share-round").addEventListener("click", () => {
+      shareRound();
+    });
+
     document.getElementById("new-game").addEventListener("click", () => {
-      startGame();
+      startGame(activeShareWords);
     });
 
     document.getElementById("play-again").addEventListener("click", () => {
       overlayEl.classList.remove("show");
-      startGame();
+      startGame(activeShareWords);
     });
 
     document.getElementById("start-playing").addEventListener("click", () => {
@@ -1328,6 +1584,79 @@
       return Number.isInteger(value) ? `${value}` : value.toFixed(1).replace(/\.0$/, "");
     }
 
+    function normalizeShareWords(words) {
+      if (!Array.isArray(words)) return null;
+      const normalized = words
+        .map((word) => `${word}`.trim().toLowerCase())
+        .filter((word) => /^[a-z]+$/.test(word));
+      if (normalized.length !== 3) return null;
+      return normalized;
+    }
+
+    function buildShareKey(words) {
+      const normalized = normalizeShareWords(words);
+      return normalized ? normalized.join("|") : null;
+    }
+
+    function getSharedWordsFromUrl() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get(SHARE_PARAM);
+        if (!raw) return null;
+        return normalizeShareWords(raw.split(","));
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getShareWordsForCurrentRound() {
+      const initialWords = state.sourceWords
+        .filter((source) => source.kind === "initial")
+        .map((source) => source.word);
+      return normalizeShareWords(initialWords);
+    }
+
+    function buildShareUrl(words) {
+      const normalized = normalizeShareWords(words);
+      if (!normalized) return window.location.href;
+      const url = new URL(window.location.href);
+      url.searchParams.set(SHARE_PARAM, normalized.join(","));
+      return url.toString();
+    }
+
+    async function shareRound() {
+      const shareWords = getShareWordsForCurrentRound();
+      if (!shareWords) {
+        statusEl.innerHTML = "<strong>Share unavailable.</strong> Start a round before sharing it.";
+        return;
+      }
+
+      const shareUrl = buildShareUrl(shareWords);
+      const shareText = `Play my Letter Hunt round with these words: ${shareWords.map((word) => word.toUpperCase()).join(", ")}.`;
+
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: "Letter Hunt",
+            text: shareText,
+            url: shareUrl,
+          });
+          statusEl.innerHTML = "<strong>Round shared.</strong> Anyone opening that link gets the same starting words.";
+          return;
+        }
+
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+          statusEl.innerHTML = "<strong>Share link copied.</strong> Anyone opening it gets the same starting words.";
+          return;
+        }
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+      }
+
+      statusEl.innerHTML = `<strong>Share this link.</strong> ${shareUrl}`;
+    }
+
     function availableLetterCount() {
       return state.bank.filter((tile) => tile.status === "available").length;
     }
@@ -1405,6 +1734,97 @@
       return auraMap;
     }
 
+    function placedTileCount() {
+      return state.grid.reduce(
+        (total, row) => total + row.reduce((rowTotal, cell) => rowTotal + (cell ? 1 : 0), 0),
+        0
+      );
+    }
+
+    function buildSnakePath(length) {
+      const masterPath = [
+        { row: 4, col: 1 },
+        { row: 4, col: 2 },
+        { row: 4, col: 3 },
+        { row: 4, col: 4 },
+        { row: 3, col: 4 },
+        { row: 2, col: 4 },
+        { row: 2, col: 3 },
+        { row: 2, col: 2 },
+        { row: 2, col: 1 },
+        { row: 1, col: 1 },
+        { row: 0, col: 1 },
+        { row: 0, col: 2 },
+        { row: 0, col: 3 },
+        { row: 0, col: 4 },
+        { row: 0, col: 5 },
+        { row: 1, col: 5 },
+        { row: 2, col: 5 },
+        { row: 3, col: 5 },
+      ];
+
+      return {
+        cols: 7,
+        positions: masterPath.slice(0, Math.max(1, Math.min(length, masterPath.length))),
+      };
+    }
+
+    function renderFinalSnake() {
+      if (!finalSnakeEl) return;
+
+      const renderedTiles = Array.from(boardEl.querySelectorAll(".cell.filled"))
+        .slice(0, 18)
+        .map((cell) => {
+          const styles = window.getComputedStyle(cell);
+          return {
+            background: styles.background,
+            border: styles.border,
+            boxShadow: styles.boxShadow,
+          };
+        });
+
+      const snakeTiles = renderedTiles.length
+        ? renderedTiles
+        : Array.from({ length: 6 }, () => ({
+            background: "linear-gradient(180deg, #111827, #1f2937)",
+            border: "1px solid #111827",
+            boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.18)",
+          }));
+
+      const { cols, positions } = buildSnakePath(snakeTiles.length);
+      finalSnakeEl.innerHTML = "";
+      finalSnakeEl.style.gridTemplateColumns = `repeat(${cols}, var(--snake-size))`;
+
+      positions.forEach((position, index) => {
+        const tileStyle = snakeTiles[index];
+        const segment = document.createElement("div");
+        const isHead = index === positions.length - 1;
+        segment.className = `snake-segment${isHead ? " head" : ""}`;
+        segment.style.gridColumn = `${position.col + 1}`;
+        segment.style.gridRow = `${position.row + 1}`;
+        segment.style.background = tileStyle.background;
+        segment.style.border = tileStyle.border;
+        segment.style.boxShadow = tileStyle.boxShadow;
+        segment.style.setProperty("--snake-delay", `${index * 85}ms`);
+
+        if (isHead) {
+          const face = document.createElement("div");
+          face.className = "snake-face";
+
+          const googlyEye = document.createElement("span");
+          googlyEye.className = "snake-eye googly";
+
+          const winkEye = document.createElement("span");
+          winkEye.className = "snake-eye wink";
+
+          face.append(googlyEye, winkEye);
+          segment.appendChild(face);
+        }
+
+        finalSnakeEl.appendChild(segment);
+      });
+    }
+
     function getLetterValue(letter) {
       return LETTER_VALUES[letter.toLowerCase()] || 1;
     }
@@ -1467,15 +1887,30 @@
       state.boardAnalysis = null;
       state.tradePenaltyTotal = 0;
       state.oneLetterPromptShown = false;
+      state.shareKey = null;
     }
 
-    function startGame() {
+    function startGame(sharedWords = null) {
       resetState();
-      for (let i = 0; i < 3; i += 1) {
-        addWordToBank(chooseSourceWord(), "initial");
+      const normalizedShareWords = normalizeShareWords(sharedWords);
+      if (normalizedShareWords) {
+        normalizedShareWords.forEach((word) => {
+          state.usedSourceWords.add(word);
+          addWordToBank(word, "initial");
+        });
+        state.shareKey = buildShareKey(normalizedShareWords);
+      } else {
+        for (let i = 0; i < 3; i += 1) {
+          addWordToBank(chooseSourceWord(), "initial");
+        }
+        state.shareKey = buildShareKey(getShareWordsForCurrentRound());
       }
       state.boardAnalysis = analyzeBoard();
-      pushLog("Round started with three source words. Place any letter anywhere, or move placed letters to reshape the board.");
+      pushLog(
+        normalizedShareWords
+          ? "Shared round loaded with matching source words. Place any letter anywhere, or move placed letters to reshape the board."
+          : "Round started with three source words. Place any letter anywhere, or move placed letters to reshape the board."
+      );
       render();
       openRoundIntro();
     }
@@ -1497,6 +1932,7 @@
         sourceCounter: state.sourceCounter,
         tradePenaltyTotal: state.tradePenaltyTotal,
         oneLetterPromptShown: state.oneLetterPromptShown,
+        shareKey: state.shareKey,
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -1505,7 +1941,7 @@
       }
     }
 
-    function restoreSavedGame() {
+    function restoreSavedGame(expectedShareKey = null) {
       let raw = null;
       try {
         raw = localStorage.getItem(STORAGE_KEY);
@@ -1516,6 +1952,9 @@
 
       try {
         const saved = JSON.parse(raw);
+        if (expectedShareKey && saved.shareKey !== expectedShareKey) {
+          return false;
+        }
         state.boardCols = saved.boardCols || saved.grid?.[0]?.length || INITIAL_BOARD_COLS;
         state.grid = Array.isArray(saved.grid)
           ? saved.grid.slice(0, BOARD_ROWS).map((row) => {
@@ -1540,6 +1979,7 @@
         state.sourceCounter = saved.sourceCounter || 1;
         state.tradePenaltyTotal = saved.tradePenaltyTotal || 0;
         state.oneLetterPromptShown = Boolean(saved.oneLetterPromptShown);
+        state.shareKey = saved.shareKey || null;
         state.boardAnalysis = analyzeBoard();
         state.score = state.boardAnalysis.score - state.tradePenaltyTotal;
         state.wordsMade = state.boardAnalysis.validWords.filter((sequence) => sequence.direction !== "single").length;
@@ -1587,12 +2027,12 @@
     }
 
     function openTradeWarning() {
-      const tile = getSelectedTile();
-      if (!tile) {
-        statusEl.innerHTML = "<strong>No letter selected.</strong> Choose an unused tile first if you want to trade.";
+      const selection = getTradeSelection();
+      if (!selection) {
+        statusEl.innerHTML = "<strong>No letter selected.</strong> Choose a bank tile or a placed board letter first if you want to trade.";
         return;
       }
-      if (tile.status !== "available") {
+      if (selection.source === "bank" && selection.tile.status !== "available") {
         statusEl.innerHTML = "<strong>That tile is locked.</strong> Only unused letters can be traded.";
         return;
       }
@@ -1630,6 +2070,31 @@
 
     function getSelectedTile() {
       return state.bank.find((tile) => tile.id === state.selectedBankId) || null;
+    }
+
+    function getSelectedBoardTile() {
+      if (!state.selectedGridCell) return null;
+      const { row, col } = state.selectedGridCell;
+      if (!inBounds(row, col)) return null;
+      const cell = state.grid[row][col];
+      if (!cell) return null;
+      const tile = state.bank.find((item) => item.id === cell.bankId) || null;
+      if (!tile) return null;
+      return { row, col, cell, tile };
+    }
+
+    function getTradeSelection() {
+      const bankTile = getSelectedTile();
+      if (bankTile) {
+        return { source: "bank", tile: bankTile };
+      }
+
+      const boardTile = getSelectedBoardTile();
+      if (boardTile) {
+        return { source: "board", ...boardTile };
+      }
+
+      return null;
     }
 
     function isBoardEmpty() {
@@ -1691,49 +2156,9 @@
       };
     }
 
-    function stemVariants(word) {
-      const seen = new Set();
-      const queue = [word.toLowerCase()];
-      while (queue.length) {
-        const current = queue.pop();
-        if (!current || current.length < 2 || seen.has(current)) continue;
-        seen.add(current);
-
-        const tryAdd = (candidate) => {
-          if (candidate && candidate.length >= 2 && !seen.has(candidate)) queue.push(candidate);
-        };
-
-        if (current.endsWith("ied") && current.length > 4) tryAdd(current.slice(0, -3) + "y");
-
-        ["ed", "er", "est", "ing", "ly", "ness", "ment"].forEach((suffix) => {
-          if (current.endsWith(suffix) && current.length - suffix.length >= 2) {
-            const stripped = current.slice(0, -suffix.length);
-            tryAdd(stripped);
-            if (/([bcdfghjklmnpqrstvwxyz])\1$/.test(stripped)) {
-              tryAdd(stripped.slice(0, -1));
-            }
-            if (suffix === "ing" || suffix === "ed") {
-              tryAdd(stripped + "e");
-            }
-          }
-        });
-      }
-      return seen;
-    }
-
     function isBlockedBySource(word) {
       const lower = word.toLowerCase();
-      if (state.sourceWords.some((source) => source.word === lower)) {
-        return true;
-      }
-      const targetStems = stemVariants(lower);
-      return state.sourceWords.some((source) => {
-        const sourceStems = stemVariants(source.word);
-        for (const variant of targetStems) {
-          if (sourceStems.has(variant)) return true;
-        }
-        return false;
-      });
+      return state.sourceWords.some((source) => source.word === lower);
     }
 
     function isDictionaryWord(word) {
@@ -1856,16 +2281,18 @@
       });
 
       sequences.forEach((sequence, index) => {
-        if (!connectedSequenceIds.has(index)) return;
         const points = scoreWord(sequence.word);
-        if (isPlayableWord(sequence.word)) {
-          validWords.push({ ...sequence, points });
-          score += points;
-          sequence.cells.forEach((cell) => validCellKeys.add(`${cell.row}:${cell.col}`));
-        } else {
+        if (!isPlayableWord(sequence.word)) {
           invalidWords.push({ ...sequence, points });
           score -= points;
           sequence.cells.forEach((cell) => invalidCellKeys.add(`${cell.row}:${cell.col}`));
+          return;
+        }
+
+        if (connectedSequenceIds.has(index)) {
+          validWords.push({ ...sequence, points });
+          score += points;
+          sequence.cells.forEach((cell) => validCellKeys.add(`${cell.row}:${cell.col}`));
         }
       });
 
@@ -2029,18 +2456,24 @@
     }
 
     function tradeSelectedLetter() {
-      const tile = getSelectedTile();
-      if (!tile) {
-        statusEl.innerHTML = "<strong>No letter selected.</strong> Choose an unused tile first if you want to trade.";
+      const selection = getTradeSelection();
+      if (!selection) {
+        statusEl.innerHTML = "<strong>No letter selected.</strong> Choose a bank tile or a placed board letter first if you want to trade.";
         return;
       }
-      if (tile.status !== "available") {
+      if (selection.source === "bank" && selection.tile.status !== "available") {
         statusEl.innerHTML = "<strong>That tile is locked.</strong> Only unused letters can be traded.";
         return;
       }
 
+      const tile = selection.tile;
+      if (selection.source === "board") {
+        state.grid[selection.row][selection.col] = null;
+      }
+
       tile.status = "traded";
       state.selectedBankId = null;
+      state.selectedGridCell = null;
 
       const newWord = chooseSourceWord();
       const penalty = scoreWord(newWord) / 2;
@@ -2056,6 +2489,7 @@
 
     function finishRound() {
       const lettersLeft = availableLetterCount();
+      renderFinalSnake();
       finalSummaryEl.textContent = `Final score: ${formatScore(state.score)}. Words made: ${state.wordsMade}. Letters left: ${lettersLeft}.`;
       overlayEl.classList.add("show");
       persistState();
@@ -2263,7 +2697,14 @@
       persistState();
     }
 
-    if (!restoreSavedGame()) {
+    if (activeShareWords) {
+      if (!restoreSavedGame(activeShareKey)) {
+        startGame(activeShareWords);
+      } else {
+        render();
+        maybeShowOneLetterPrompt();
+      }
+    } else if (!restoreSavedGame()) {
       startGame();
     } else {
       render();

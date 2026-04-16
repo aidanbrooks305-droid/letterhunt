@@ -12834,6 +12834,7 @@ balsamy
 baltei
 balter
 balteus
+baltic
 baltimorite
 balu
 baluchithere
@@ -91711,6 +91712,7 @@ nicety
 niche
 nichelino
 nicher
+nick
 nickel
 nickelage
 nickelic
@@ -124759,6 +124761,7 @@ roastable
 roaster
 roasting
 roastingly
+rob
 robalito
 robalo
 roband
