@@ -87,9 +87,14 @@
     }
 
     .topbar {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 16px;
+      align-items: start;
+    }
+
+    .topbar-copy {
+      min-width: 0;
     }
 
     .hero-bank-layout {
@@ -120,8 +125,9 @@
     }
 
     .hero-actions {
-      margin-top: 14px;
-      justify-content: flex-start;
+      margin: 0;
+      justify-content: flex-end;
+      align-self: start;
     }
 
     .board-wrap {
@@ -1092,6 +1098,10 @@
         gap: 6px;
       }
 
+      .hero-actions {
+        justify-content: flex-end;
+      }
+
       h1 {
         font-size: 1.42rem;
       }
@@ -1306,12 +1316,12 @@
   <div class="shell">
     <section class="panel hero-panel">
       <div class="topbar">
-        <div>
+        <div class="topbar-copy">
           <h1>Letter Hunt</h1>
           <p class="subtitle">Select one unused letter tile to place it anywhere, or select a placed tile on the board to move it.</p>
-          <div class="action-row hero-actions">
-            <button id="open-tutorial-hero" class="ghost">How To Play</button>
-          </div>
+        </div>
+        <div class="action-row hero-actions">
+          <button id="open-tutorial-hero" class="ghost">How To Play</button>
         </div>
       </div>
 
@@ -1443,6 +1453,7 @@
     const BOARD_ROWS = 10;
     const INITIAL_BOARD_COLS = 10;
     const STORAGE_KEY = "letter-hunt-save-v1";
+    const TUTORIAL_SEEN_KEY = "letter-hunt-tutorial-seen-v1";
     const SHARE_PARAM = "words";
     const ALLOWED_TWO_LETTER_WORDS = new Set([
       "am", "an", "as", "at",
@@ -2187,6 +2198,22 @@
       }
     }
 
+    function hasSeenTutorial() {
+      try {
+        return localStorage.getItem(TUTORIAL_SEEN_KEY) === "1";
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function markTutorialSeen() {
+      try {
+        localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+      } catch (error) {
+        // Ignore storage failures so the game stays playable in restricted contexts.
+      }
+    }
+
     function persistState() {
       const payload = {
         grid: state.grid,
@@ -2266,6 +2293,12 @@
 
     function renderRoundIntroStep() {
       const slide = INTRO_SLIDES[introStepIndex];
+      const fallbackSources = [
+        slide.image,
+        slide.image.replace("./tutorial-images/", "./Instruction%20Screenshots/"),
+        slide.image.replace("./tutorial-images/", "./Instruction Screenshots/"),
+      ];
+      let sourceIndex = 0;
       introProgressEl.innerHTML = "";
       INTRO_SLIDES.forEach((_, index) => {
         const dot = document.createElement("span");
@@ -2276,7 +2309,15 @@
         dot.setAttribute("aria-hidden", "true");
         introProgressEl.appendChild(dot);
       });
-      introImageEl.src = slide.image;
+      introImageEl.onerror = () => {
+        sourceIndex += 1;
+        if (sourceIndex < fallbackSources.length) {
+          introImageEl.src = fallbackSources[sourceIndex];
+          return;
+        }
+        introImageEl.onerror = null;
+      };
+      introImageEl.src = fallbackSources[sourceIndex];
       introImageEl.alt = `Instruction screenshot ${introStepIndex + 1}`;
       introCaptionEl.textContent = slide.caption;
       introCaptionEl.classList.toggle("is-empty", !slide.caption);
@@ -2295,6 +2336,7 @@
     }
 
     function openRoundIntro(options = {}) {
+      markTutorialSeen();
       revealWordsAfterTutorial = options.showWordsAfter !== false;
       introStepIndex = 0;
       renderRoundIntroStep();
@@ -3034,17 +3076,25 @@
       persistState();
     }
 
+    const shouldAutoShowTutorial = !hasSeenTutorial();
+
     if (currentSharedWords) {
       if (!restoreSavedGame(currentShareKey)) {
-        startGame(currentSharedWords);
+        startGame(currentSharedWords, { showTutorial: shouldAutoShowTutorial, showWordsReveal: true });
       } else {
         render();
+        if (shouldAutoShowTutorial) {
+          openRoundIntro({ showWordsAfter: false });
+        }
         maybeShowOneLetterPrompt();
       }
     } else if (!restoreSavedGame()) {
-      startGame();
+      startGame(null, { showTutorial: shouldAutoShowTutorial, showWordsReveal: true });
     } else {
       render();
+      if (shouldAutoShowTutorial) {
+        openRoundIntro({ showWordsAfter: false });
+      }
       maybeShowOneLetterPrompt();
     }
     window.scrollTo(0, 0);
