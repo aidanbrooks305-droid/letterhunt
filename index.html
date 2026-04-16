@@ -199,7 +199,7 @@
     .cell.seed::after {
       content: "•";
       position: absolute;
-      color: rgba(15, 118, 110, 0.35);
+      color: rgba(244, 114, 182, 0.5);
       font-size: 1.3rem;
       inset: auto;
     }
@@ -589,6 +589,31 @@
       letter-spacing: 0.02em;
       text-align: center;
       animation: intro-pop 360ms cubic-bezier(0.2, 0.75, 0.24, 1) both;
+    }
+
+    .warning-box {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid #f5b7b1;
+      background: linear-gradient(180deg, #fff1f0, #fee4e2);
+      color: var(--danger);
+      margin-bottom: 18px;
+    }
+
+    .warning-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+    }
+
+    .warning-text {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.5;
+      font-weight: 700;
+      color: #7a271a;
     }
 
     @keyframes intro-pop {
@@ -1044,6 +1069,19 @@
     </div>
   </div>
 
+  <div id="trade-overlay" class="overlay" aria-hidden="true">
+    <div class="modal intro-modal">
+      <div class="warning-box">
+        <span class="warning-label">WARNING</span>
+        <p class="warning-text">If you trade in this letter, you get a new surprise word AND negative points.</p>
+      </div>
+      <div class="action-row">
+        <button id="confirm-trade" class="danger">PROCEED</button>
+        <button id="cancel-trade" class="ghost">GO BACK</button>
+      </div>
+    </div>
+  </div>
+
   <div id="drag-ghost" class="drag-ghost" aria-hidden="true"></div>
 
   <script src="./words.js"></script>
@@ -1133,6 +1171,7 @@
     const overlayEl = document.getElementById("overlay");
     const introOverlayEl = document.getElementById("intro-overlay");
     const lastLetterOverlayEl = document.getElementById("last-letter-overlay");
+    const tradeOverlayEl = document.getElementById("trade-overlay");
     const introWordsEl = document.getElementById("intro-words");
     const finalSummaryEl = document.getElementById("final-summary");
     const submitBoardButton = document.getElementById("submit-board");
@@ -1145,7 +1184,7 @@
     });
 
     document.getElementById("trade-letter").addEventListener("click", () => {
-      tradeSelectedLetter();
+      openTradeWarning();
     });
 
     document.getElementById("new-game").addEventListener("click", () => {
@@ -1163,6 +1202,15 @@
 
     document.getElementById("continue-last-letter").addEventListener("click", () => {
       closeLastLetterPrompt();
+    });
+
+    document.getElementById("confirm-trade").addEventListener("click", () => {
+      closeTradeWarning();
+      tradeSelectedLetter();
+    });
+
+    document.getElementById("cancel-trade").addEventListener("click", () => {
+      closeTradeWarning();
     });
 
     window.addEventListener("pagehide", () => {
@@ -1291,7 +1339,7 @@
     }
 
     function beginDrag(payload, event) {
-      if (overlayEl.classList.contains("show") || introOverlayEl.classList.contains("show") || lastLetterOverlayEl.classList.contains("show")) {
+      if (overlayEl.classList.contains("show") || introOverlayEl.classList.contains("show") || lastLetterOverlayEl.classList.contains("show") || tradeOverlayEl.classList.contains("show")) {
         return;
       }
       dragState = {
@@ -1506,6 +1554,25 @@
       lastLetterOverlayEl.classList.remove("show");
       lastLetterOverlayEl.setAttribute("aria-hidden", "true");
       window.scrollTo(0, 0);
+    }
+
+    function openTradeWarning() {
+      const tile = getSelectedTile();
+      if (!tile) {
+        statusEl.innerHTML = "<strong>No letter selected.</strong> Choose an unused tile first if you want to trade.";
+        return;
+      }
+      if (tile.status !== "available") {
+        statusEl.innerHTML = "<strong>That tile is locked.</strong> Only unused letters can be traded.";
+        return;
+      }
+      tradeOverlayEl.classList.add("show");
+      tradeOverlayEl.setAttribute("aria-hidden", "false");
+    }
+
+    function closeTradeWarning() {
+      tradeOverlayEl.classList.remove("show");
+      tradeOverlayEl.setAttribute("aria-hidden", "true");
     }
 
     function maybeShowOneLetterPrompt() {
