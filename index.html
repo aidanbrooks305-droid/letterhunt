@@ -119,6 +119,11 @@
       max-width: 62ch;
     }
 
+    .hero-actions {
+      margin-top: 14px;
+      justify-content: flex-start;
+    }
+
     .board-wrap {
       overflow: auto;
       padding: 14px;
@@ -1304,6 +1309,9 @@
         <div>
           <h1>Letter Hunt</h1>
           <p class="subtitle">Select one unused letter tile to place it anywhere, or select a placed tile on the board to move it.</p>
+          <div class="action-row hero-actions">
+            <button id="open-tutorial-hero" class="ghost">How To Play</button>
+          </div>
         </div>
       </div>
 
@@ -1469,35 +1477,35 @@
     ];
     const INTRO_SLIDES = [
       {
-        image: "./Instruction%20Screenshots/1.jpg",
+        image: "./tutorial-images/1.jpg",
         caption: "Tap or drag a letter to the grid to start.",
       },
       {
-        image: "./Instruction%20Screenshots/2.jpg",
+        image: "./tutorial-images/2.jpg",
         caption: "Use the letters in your bank to create words.",
       },
       {
-        image: "./Instruction%20Screenshots/3.jpg",
+        image: "./tutorial-images/3.jpg",
         caption: "You get points when you make a crossword.",
       },
       {
-        image: "./Instruction%20Screenshots/4.jpg",
+        image: "./tutorial-images/4.jpg",
         caption: "Keep going! But if you have a letter you want to trade, you can trade it at any time for a new word.",
       },
       {
-        image: "./Instruction%20Screenshots/5.jpg",
+        image: "./tutorial-images/5.jpg",
         caption: "",
       },
       {
-        image: "./Instruction%20Screenshots/6.jpg",
+        image: "./tutorial-images/6.jpg",
         caption: "Yay, you got a new random word to work with.",
       },
       {
-        image: "./Instruction%20Screenshots/7.jpg",
+        image: "./tutorial-images/7.jpg",
         caption: "Keep going, you're almost there! Make sure to hit submit before you finish!",
       },
       {
-        image: "./Instruction%20Screenshots/8.jpg",
+        image: "./tutorial-images/8.jpg",
         caption: "Nice work! Share with friends!",
       },
     ];
@@ -1625,6 +1633,10 @@
     });
 
     document.getElementById("open-tutorial").addEventListener("click", () => {
+      openRoundIntro({ showWordsAfter: false });
+    });
+
+    document.getElementById("open-tutorial-hero").addEventListener("click", () => {
       openRoundIntro({ showWordsAfter: false });
     });
 
