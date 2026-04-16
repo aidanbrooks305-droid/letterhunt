@@ -277,6 +277,10 @@
       color: white;
     }
 
+    .submit.submit-locked {
+      opacity: 0.78;
+    }
+
     .ghost {
       background: #eef1f4;
       color: var(--text);
@@ -996,7 +1000,7 @@
       </div>
 
       <div class="action-row">
-        <button id="submit-board" class="submit" disabled>SUBMIT</button>
+        <button id="submit-board" class="submit" aria-disabled="true">SUBMIT</button>
         <button id="trade-letter" class="danger">Trade Selected Letter</button>
         <button id="new-game" class="primary">New Game</button>
       </div>
@@ -2248,7 +2252,9 @@
     }
 
     function render() {
-      submitBoardButton.disabled = !canSubmitBoard();
+      const canSubmit = canSubmitBoard();
+      submitBoardButton.classList.toggle("submit-locked", !canSubmit);
+      submitBoardButton.setAttribute("aria-disabled", String(!canSubmit));
       renderBoard();
       renderBank();
       renderWords();
