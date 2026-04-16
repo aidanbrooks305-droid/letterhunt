@@ -50452,7 +50452,6 @@ faeryland
 faff
 faffle
 faffy
-fag
 fagaceous
 fagald
 fage
@@ -75679,7 +75678,6 @@ kiestless
 kieye
 kikar
 kikawaeo
-kike
 kiku
 kikuel
 kikumon
@@ -91813,7 +91811,6 @@ niggardize
 niggardling
 niggardly
 niggardness
-nigger
 niggerdom
 niggerfish
 niggergoose
@@ -134760,7 +134757,6 @@ slusher
 slushily
 slushiness
 slushy
-slut
 slutch
 slutchy
 sluther

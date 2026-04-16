@@ -171,7 +171,7 @@
       color: #ffffff;
       border-color: #111827;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
-      cursor: pointer;
+      cursor: grab;
       background-clip: padding-box;
     }
 
@@ -386,6 +386,52 @@
     .tile:disabled {
       opacity: 1;
       cursor: default;
+    }
+
+    .tile.draggable {
+      cursor: grab;
+    }
+
+    body.dragging {
+      user-select: none;
+      cursor: grabbing;
+    }
+
+    .drag-ghost {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 58px;
+      height: 58px;
+      display: none;
+      place-items: center;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #111827, #1f2937);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: 0.02em;
+      pointer-events: none;
+      z-index: 9999;
+      box-shadow: 0 18px 36px rgba(17, 24, 39, 0.24);
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .drag-ghost.show {
+      display: grid;
+    }
+
+    .drag-ghost.ghost-bank {
+      border-radius: 16px;
+      height: 72px;
+      width: 58px;
+    }
+
+    .drag-ghost.ghost-board {
+      border-radius: 14px;
+      width: var(--tile);
+      height: var(--tile);
+      font-size: calc(var(--tile) * 0.45);
     }
 
     .log {
@@ -979,6 +1025,8 @@
     </div>
   </div>
 
+  <div id="drag-ghost" class="drag-ghost" aria-hidden="true"></div>
+
   <script src="./words.js"></script>
   <script>
     const BOARD_ROWS = 11;
@@ -993,6 +1041,23 @@
       "to", "up", "us", "we",
       "yi", "xi",
     ]);
+    const BLOCKED_WORDS = new Set([
+      "cunt",
+      "dick",
+      "fag",
+      "faggot",
+      "kike",
+      "nigger",
+      "slut",
+      "tranny",
+    ]);
+    const AURA_COLORS = [
+      { edge: "#60a5fa", glow: "rgba(96, 165, 250, 0.34)" },
+      { edge: "#facc15", glow: "rgba(250, 204, 21, 0.34)" },
+      { edge: "#f472b6", glow: "rgba(244, 114, 182, 0.34)" },
+      { edge: "#4ade80", glow: "rgba(74, 222, 128, 0.34)" },
+      { edge: "#2dd4bf", glow: "rgba(45, 212, 191, 0.34)" },
+    ];
     const LETTER_VALUES = {
       a: 1, b: 3, c: 3, d: 2, e: 1, f: 4, g: 2, h: 4, i: 1, j: 8, k: 5, l: 1, m: 3,
       n: 1, o: 1, p: 3, q: 10, r: 1, s: 1, t: 1, u: 1, v: 4, w: 4, x: 8, y: 4, z: 10,
@@ -1018,7 +1083,7 @@
       window.WORD_SOURCE
         .split(/\s+/)
         .map((word) => word.trim())
-        .filter(Boolean)
+        .filter((word) => word && !BLOCKED_WORDS.has(word.toLowerCase()))
     );
 
     const state = {
@@ -1052,6 +1117,9 @@
     const introWordsEl = document.getElementById("intro-words");
     const finalSummaryEl = document.getElementById("final-summary");
     const submitBoardButton = document.getElementById("submit-board");
+    const dragGhostEl = document.getElementById("drag-ghost");
+    let dragState = null;
+    let suppressClick = false;
 
     document.getElementById("submit-board").addEventListener("click", () => {
       submitBoard();
@@ -1084,6 +1152,62 @@
 
     window.addEventListener("beforeunload", () => {
       persistState();
+    });
+
+    document.addEventListener("pointermove", (event) => {
+      if (!dragState) return;
+      dragState.lastX = event.clientX;
+      dragState.lastY = event.clientY;
+
+      if (!dragState.active) {
+        const deltaX = event.clientX - dragState.startX;
+        const deltaY = event.clientY - dragState.startY;
+        if (Math.hypot(deltaX, deltaY) < 8) return;
+        activateDrag();
+      }
+
+      event.preventDefault();
+      positionDragGhost(event.clientX, event.clientY);
+    });
+
+    document.addEventListener("pointerup", (event) => {
+      if (!dragState) return;
+      const currentDrag = dragState;
+      const wasActive = currentDrag.active;
+      dragState = null;
+
+      if (wasActive) {
+        suppressClick = true;
+        window.setTimeout(() => {
+          suppressClick = false;
+        }, 0);
+        const dropTarget = document.elementFromPoint(event.clientX, event.clientY);
+        const target = dropTarget?.closest(".cell");
+        const bankTarget = dropTarget?.closest("#bank, .hero-bank-layout");
+        clearDragGhost();
+        document.body.classList.remove("dragging");
+        if (target) {
+          const row = Number(target.dataset.row);
+          const col = Number(target.dataset.col);
+          if (currentDrag.type === "bank") {
+            placeTileById(currentDrag.bankId, row, col);
+          } else if (currentDrag.type === "board") {
+            moveGridTile(currentDrag.fromRow, currentDrag.fromCol, row, col);
+          }
+        } else if (bankTarget && currentDrag.type === "board") {
+          returnGridTileToBank(currentDrag.fromRow, currentDrag.fromCol);
+        }
+        return;
+      }
+
+      clearDragGhost();
+      document.body.classList.remove("dragging");
+    });
+
+    document.addEventListener("pointercancel", () => {
+      dragState = null;
+      clearDragGhost();
+      document.body.classList.remove("dragging");
     });
 
     function boardRows() {
@@ -1119,6 +1243,69 @@
 
     function canSubmitBoard() {
       return availableLetterCount() === 0;
+    }
+
+    function consumeSuppressedClick() {
+      if (!suppressClick) return false;
+      suppressClick = false;
+      return true;
+    }
+
+    function positionDragGhost(x, y) {
+      dragGhostEl.style.left = `${x}px`;
+      dragGhostEl.style.top = `${y}px`;
+    }
+
+    function clearDragGhost() {
+      dragGhostEl.classList.remove("show", "ghost-bank", "ghost-board");
+      dragGhostEl.textContent = "";
+      dragGhostEl.removeAttribute("style");
+    }
+
+    function activateDrag() {
+      if (!dragState || dragState.active) return;
+      dragState.active = true;
+      document.body.classList.add("dragging");
+      dragGhostEl.textContent = dragState.letter.toUpperCase();
+      dragGhostEl.classList.add("show", dragState.type === "board" ? "ghost-board" : "ghost-bank");
+      positionDragGhost(dragState.lastX, dragState.lastY);
+    }
+
+    function beginDrag(payload, event) {
+      if (overlayEl.classList.contains("show") || introOverlayEl.classList.contains("show") || lastLetterOverlayEl.classList.contains("show")) {
+        return;
+      }
+      dragState = {
+        ...payload,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        active: false,
+      };
+    }
+
+    function buildAuraShadowMap() {
+      const auraMap = new Map();
+      if (!state.boardAnalysis) return auraMap;
+
+      state.boardAnalysis.validWords.forEach((sequence, index) => {
+        if (sequence.direction === "single") return;
+        const palette = AURA_COLORS[index % AURA_COLORS.length];
+        sequence.cells.forEach((cell) => {
+          const key = `${cell.row}:${cell.col}`;
+          if (state.boardAnalysis.invalidCellKeys.has(key)) return;
+          const shadows = auraMap.get(key) || [];
+          const layer = Math.floor(shadows.length / 2);
+          const spread = 2 + layer * 3;
+          const glowSize = 10 + layer * 4;
+          shadows.push(`0 0 0 ${spread}px ${palette.edge}`);
+          shadows.push(`0 0 ${glowSize}px ${palette.glow}`);
+          auraMap.set(key, shadows);
+        });
+      });
+
+      return auraMap;
     }
 
     function getLetterValue(letter) {
@@ -1258,7 +1445,7 @@
         state.oneLetterPromptShown = Boolean(saved.oneLetterPromptShown);
         state.boardAnalysis = analyzeBoard();
         state.score = state.boardAnalysis.score - state.tradePenaltyTotal;
-        state.wordsMade = state.boardAnalysis.validWords.length;
+        state.wordsMade = state.boardAnalysis.validWords.filter((sequence) => sequence.direction !== "single").length;
         if (!state.log.length) {
           pushLog("Saved game restored.");
         }
@@ -1487,6 +1674,31 @@
       return sequences;
     }
 
+    function isCellPartOfWord(row, col) {
+      const countLine = (deltaRow, deltaCol) => {
+        let total = 1;
+        let nextRow = row + deltaRow;
+        let nextCol = col + deltaCol;
+        while (inBounds(nextRow, nextCol) && state.grid[nextRow][nextCol]) {
+          total += 1;
+          nextRow += deltaRow;
+          nextCol += deltaCol;
+        }
+        nextRow = row - deltaRow;
+        nextCol = col - deltaCol;
+        while (inBounds(nextRow, nextCol) && state.grid[nextRow][nextCol]) {
+          total += 1;
+          nextRow -= deltaRow;
+          nextCol -= deltaCol;
+        }
+        return total;
+      };
+
+      const horizontal = countLine(0, 1);
+      const vertical = countLine(1, 0);
+      return horizontal > 1 || vertical > 1;
+    }
+
     function analyzeBoard() {
       const sequences = [
         ...collectLineSequences("horizontal"),
@@ -1496,9 +1708,28 @@
       const invalidWords = [];
       const validCellKeys = new Set();
       const invalidCellKeys = new Set();
+      const sequenceCellKeys = new Set();
+      const sequenceIdsByCell = new Map();
+      const connectedSequenceIds = new Set();
       let score = 0;
 
-      sequences.forEach((sequence) => {
+      sequences.forEach((sequence, index) => {
+        sequence.cells.forEach((cell) => {
+          const key = `${cell.row}:${cell.col}`;
+          sequenceCellKeys.add(key);
+          const ids = sequenceIdsByCell.get(key) || [];
+          ids.push(index);
+          sequenceIdsByCell.set(key, ids);
+        });
+      });
+
+      sequenceIdsByCell.forEach((ids) => {
+        if (ids.length < 2) return;
+        ids.forEach((id) => connectedSequenceIds.add(id));
+      });
+
+      sequences.forEach((sequence, index) => {
+        if (!connectedSequenceIds.has(index)) return;
         const points = scoreWord(sequence.word);
         if (isPlayableWord(sequence.word)) {
           validWords.push({ ...sequence, points });
@@ -1516,6 +1747,7 @@
           const cell = state.grid[row][col];
           if (!cell) continue;
           const key = `${row}:${col}`;
+          if (sequenceCellKeys.has(key)) continue;
           if (validCellKeys.has(key) || invalidCellKeys.has(key)) continue;
           const points = scoreWord(cell.letter);
           if (isPlayableWord(cell.letter)) {
@@ -1551,7 +1783,7 @@
       const previousScore = state.score;
       state.boardAnalysis = analyzeBoard();
       state.score = state.boardAnalysis.score - state.tradePenaltyTotal;
-      state.wordsMade = state.boardAnalysis.validWords.length;
+      state.wordsMade = state.boardAnalysis.validWords.filter((sequence) => sequence.direction !== "single").length;
 
       const delta = state.score - previousScore;
       const invalidCount = state.boardAnalysis.invalidWords.length;
@@ -1568,9 +1800,9 @@
       pushLog(`${actionLabel} (${parts.join(", ")}).`);
     }
 
-    function placeSelectedTile(row, col) {
-      const tile = getSelectedTile();
+    function placeTile(tile, row, col) {
       if (!tile) return;
+      if (tile.status !== "available") return;
       if (!inBounds(row, col) || state.grid[row][col]) {
         statusEl.innerHTML = "<strong>Occupied square.</strong> Choose an empty spot for that letter.";
         return;
@@ -1597,14 +1829,24 @@
       maybeShowOneLetterPrompt();
     }
 
-    function moveSelectedTile(row, col) {
-      if (!state.selectedGridCell) return;
+    function placeSelectedTile(row, col) {
+      placeTile(getSelectedTile(), row, col);
+    }
+
+    function placeTileById(bankId, row, col) {
+      const tile = state.bank.find((item) => item.id === bankId) || null;
+      placeTile(tile, row, col);
+    }
+
+    function moveGridTile(fromRow, fromCol, row, col) {
+      if (fromRow === row && fromCol === col) {
+        return;
+      }
       if (!inBounds(row, col) || state.grid[row][col]) {
         statusEl.innerHTML = "<strong>Occupied square.</strong> Move the tile to an empty space.";
         return;
       }
 
-      const { row: fromRow, col: fromCol } = state.selectedGridCell;
       const cell = state.grid[fromRow][fromCol];
       if (!cell) {
         state.selectedGridCell = null;
@@ -1623,6 +1865,31 @@
         : "<strong>Move complete.</strong> The board is fully valid right now.";
 
       render();
+    }
+
+    function moveSelectedTile(row, col) {
+      if (!state.selectedGridCell) return;
+      moveGridTile(state.selectedGridCell.row, state.selectedGridCell.col, row, col);
+    }
+
+    function returnGridTileToBank(fromRow, fromCol) {
+      const cell = state.grid[fromRow][fromCol];
+      if (!cell) return;
+      if (isCellPartOfWord(fromRow, fromCol)) {
+        statusEl.innerHTML = "<strong>Can't return that tile.</strong> Only loose letters that aren't part of a current word can go back to the bank.";
+        return;
+      }
+
+      const tile = state.bank.find((item) => item.id === cell.bankId);
+      if (!tile) return;
+
+      state.grid[fromRow][fromCol] = null;
+      tile.status = "available";
+      state.selectedGridCell = null;
+      setBoardAnalysisAndTrack(`Returned "${cell.letter.toUpperCase()}" to the bank`);
+      statusEl.innerHTML = "<strong>Returned to bank.</strong> That loose letter is usable again.";
+      render();
+      maybeShowOneLetterPrompt();
     }
 
     function hasAvailableLetters() {
@@ -1690,6 +1957,7 @@
       const openPlacements = selected || state.selectedGridCell ? availablePlacements() : new Set();
       const showPlacementTint = openPlacements.size > 0;
       const center = boardCenter();
+      const auraMap = buildAuraShadowMap();
 
       boardWrapEl.classList.toggle("placement-mode", showPlacementTint);
       boardWrapEl.style.overflowX = boardCols() > INITIAL_BOARD_COLS ? "auto" : "";
@@ -1704,6 +1972,10 @@
           cell.className = "cell";
           const key = `${row}:${col}`;
           const item = state.grid[row][col];
+          const dynamicShadows = [];
+
+          cell.dataset.row = `${row}`;
+          cell.dataset.col = `${col}`;
 
           if (!item && isBoardEmpty() && row === center.row && col === center.col) {
             cell.classList.add("seed");
@@ -1712,13 +1984,28 @@
           if (item) {
             cell.textContent = item.letter.toUpperCase();
             cell.classList.add("filled");
+            dynamicShadows.push("inset 0 1px 0 rgba(255, 255, 255, 0.18)");
             if (state.boardAnalysis && state.boardAnalysis.invalidCellKeys.has(key)) {
               cell.classList.add("negative");
             }
+            if (auraMap.has(key)) {
+              dynamicShadows.push(...auraMap.get(key));
+            }
             if (selectedGridCellKey === key) {
               cell.classList.add("selected-cell");
+              dynamicShadows.push("0 0 0 4px rgba(15, 118, 110, 0.24)");
             }
+            cell.addEventListener("pointerdown", (event) => {
+              if (state.selectedBankId || event.pointerType === "mouse" && event.button !== 0) return;
+              beginDrag({
+                type: "board",
+                fromRow: row,
+                fromCol: col,
+                letter: item.letter,
+              }, event);
+            });
             cell.addEventListener("click", () => {
+              if (consumeSuppressedClick()) return;
               if (state.selectedBankId) {
                 statusEl.innerHTML = "<strong>Bank tile selected.</strong> Click an empty square to place it, or tap the same bank tile again to deselect.";
                 return;
@@ -1731,6 +2018,7 @@
               cell.classList.add("valid");
             }
             cell.addEventListener("click", () => {
+              if (consumeSuppressedClick()) return;
               if (state.selectedBankId) {
                 placeSelectedTile(row, col);
                 return;
@@ -1739,7 +2027,9 @@
                 moveSelectedTile(row, col);
               }
             });
-            cell.disabled = !(selected || state.selectedGridCell);
+          }
+          if (dynamicShadows.length) {
+            cell.style.boxShadow = dynamicShadows.join(", ");
           }
           boardEl.appendChild(cell);
         }
@@ -1773,8 +2063,18 @@
           if (tile.status === "used") tileButton.classList.add("used");
           if (tile.status === "traded") tileButton.classList.add("traded");
           if (selected && selected.id === tile.id) tileButton.classList.add("selected");
+          if (tile.status === "available") tileButton.classList.add("draggable");
           tileButton.disabled = tile.status !== "available";
+          tileButton.addEventListener("pointerdown", (event) => {
+            if (tile.status !== "available" || event.pointerType === "mouse" && event.button !== 0) return;
+            beginDrag({
+              type: "bank",
+              bankId: tile.id,
+              letter: tile.letter,
+            }, event);
+          });
           tileButton.addEventListener("click", () => {
+            if (consumeSuppressedClick()) return;
             state.selectedGridCell = null;
             state.selectedBankId = tile.id === state.selectedBankId ? null : tile.id;
             render();
