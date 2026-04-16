@@ -260,6 +260,11 @@
       color: white;
     }
 
+    .submit {
+      background: var(--accent);
+      color: white;
+    }
+
     .ghost {
       background: #eef1f4;
       color: var(--text);
@@ -501,6 +506,24 @@
       line-height: 1.45;
       font-size: 0.95rem;
       font-weight: 700;
+    }
+
+    .countdown-lines {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .countdown-line {
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, var(--accent), #0b5f59);
+      color: #ffffff;
+      font-size: 1.06rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-align: center;
+      animation: intro-pop 360ms cubic-bezier(0.2, 0.75, 0.24, 1) both;
     }
 
     @keyframes intro-pop {
@@ -822,7 +845,8 @@
       }
 
       .intro-caption,
-      .intro-step {
+      .intro-step,
+      .countdown-line {
         font-size: 0.72rem;
       }
 
@@ -882,7 +906,7 @@
       </div>
 
       <div class="action-row">
-        <button id="clear-selection" class="ghost">Clear Selection</button>
+        <button id="submit-board" class="submit" disabled>SUBMIT</button>
         <button id="trade-letter" class="danger">Trade Selected Letter</button>
         <button id="new-game" class="primary">New Game</button>
       </div>
@@ -938,6 +962,19 @@
       </div>
       <div class="action-row">
         <button id="start-playing" class="primary">Start Playing</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="last-letter-overlay" class="overlay" aria-hidden="true">
+    <div class="modal intro-modal">
+      <div class="countdown-lines">
+        <div class="countdown-line" style="animation-delay: 0ms;">One Letter Left!</div>
+        <div class="countdown-line" style="animation-delay: 150ms;">Use it wisely...</div>
+        <div class="countdown-line" style="animation-delay: 300ms;">And hit SUBMIT when you're done.</div>
+      </div>
+      <div class="action-row">
+        <button id="continue-last-letter" class="submit">Keep Going</button>
       </div>
     </div>
   </div>
@@ -1000,6 +1037,7 @@
       sourceCounter: 1,
       boardAnalysis: null,
       tradePenaltyTotal: 0,
+      oneLetterPromptShown: false,
     };
 
     const boardEl = document.getElementById("board");
@@ -1010,13 +1048,13 @@
     const statusEl = document.getElementById("status");
     const overlayEl = document.getElementById("overlay");
     const introOverlayEl = document.getElementById("intro-overlay");
+    const lastLetterOverlayEl = document.getElementById("last-letter-overlay");
     const introWordsEl = document.getElementById("intro-words");
     const finalSummaryEl = document.getElementById("final-summary");
+    const submitBoardButton = document.getElementById("submit-board");
 
-    document.getElementById("clear-selection").addEventListener("click", () => {
-      state.selectedBankId = null;
-      state.selectedGridCell = null;
-      render();
+    document.getElementById("submit-board").addEventListener("click", () => {
+      submitBoard();
     });
 
     document.getElementById("trade-letter").addEventListener("click", () => {
@@ -1034,6 +1072,10 @@
 
     document.getElementById("start-playing").addEventListener("click", () => {
       closeRoundIntro();
+    });
+
+    document.getElementById("continue-last-letter").addEventListener("click", () => {
+      closeLastLetterPrompt();
     });
 
     window.addEventListener("pagehide", () => {
@@ -1069,6 +1111,14 @@
 
     function formatScore(value) {
       return Number.isInteger(value) ? `${value}` : value.toFixed(1).replace(/\.0$/, "");
+    }
+
+    function availableLetterCount() {
+      return state.bank.filter((tile) => tile.status === "available").length;
+    }
+
+    function canSubmitBoard() {
+      return availableLetterCount() === 0;
     }
 
     function getLetterValue(letter) {
@@ -1132,6 +1182,7 @@
       state.sourceCounter = 1;
       state.boardAnalysis = null;
       state.tradePenaltyTotal = 0;
+      state.oneLetterPromptShown = false;
     }
 
     function startGame() {
@@ -1161,6 +1212,7 @@
         nextBankId: state.nextBankId,
         sourceCounter: state.sourceCounter,
         tradePenaltyTotal: state.tradePenaltyTotal,
+        oneLetterPromptShown: state.oneLetterPromptShown,
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -1203,6 +1255,7 @@
         state.nextBankId = saved.nextBankId || 1;
         state.sourceCounter = saved.sourceCounter || 1;
         state.tradePenaltyTotal = saved.tradePenaltyTotal || 0;
+        state.oneLetterPromptShown = Boolean(saved.oneLetterPromptShown);
         state.boardAnalysis = analyzeBoard();
         state.score = state.boardAnalysis.score - state.tradePenaltyTotal;
         state.wordsMade = state.boardAnalysis.validWords.length;
@@ -1236,6 +1289,24 @@
       introOverlayEl.classList.remove("show");
       introOverlayEl.setAttribute("aria-hidden", "true");
       window.scrollTo(0, 0);
+    }
+
+    function openLastLetterPrompt() {
+      lastLetterOverlayEl.classList.add("show");
+      lastLetterOverlayEl.setAttribute("aria-hidden", "false");
+    }
+
+    function closeLastLetterPrompt() {
+      lastLetterOverlayEl.classList.remove("show");
+      lastLetterOverlayEl.setAttribute("aria-hidden", "true");
+      window.scrollTo(0, 0);
+    }
+
+    function maybeShowOneLetterPrompt() {
+      if (availableLetterCount() !== 1 || state.oneLetterPromptShown) return;
+      state.oneLetterPromptShown = true;
+      openLastLetterPrompt();
+      persistState();
     }
 
     function pushLog(message) {
@@ -1512,16 +1583,18 @@
       tile.status = "used";
       state.selectedBankId = null;
       setBoardAnalysisAndTrack(`Placed "${tile.letter.toUpperCase()}"`);
+      const lettersLeft = availableLetterCount();
       const invalidCount = state.boardAnalysis.invalidWords.length;
-      statusEl.innerHTML = invalidCount
-        ? `<strong>Placed.</strong> ${invalidCount} invalid sequence${invalidCount === 1 ? "" : "s"} currently scoring negative and highlighted in red.`
-        : "<strong>Placed.</strong> The board is fully valid right now.";
-
-      if (!hasAvailableLetters()) {
-        finishRound();
+      if (lettersLeft === 0) {
+        statusEl.innerHTML = "<strong>All letters placed.</strong> Hit SUBMIT when you're ready to score this board.";
+      } else {
+        statusEl.innerHTML = invalidCount
+          ? `<strong>Placed.</strong> ${invalidCount} invalid sequence${invalidCount === 1 ? "" : "s"} currently scoring negative and highlighted in red.`
+          : "<strong>Placed.</strong> The board is fully valid right now.";
       }
 
       render();
+      maybeShowOneLetterPrompt();
     }
 
     function moveSelectedTile(row, col) {
@@ -1553,7 +1626,7 @@
     }
 
     function hasAvailableLetters() {
-      return state.bank.some((tile) => tile.status === "available");
+      return availableLetterCount() > 0;
     }
 
     function expandBoardByOneColumn() {
@@ -1584,13 +1657,24 @@
       setBoardAnalysisAndTrack(`Traded "${tile.letter.toUpperCase()}" for "${newWord.toUpperCase()}" and took -${formatScore(penalty)}`);
       statusEl.innerHTML = `<strong>Trade complete.</strong> ${newWord.toUpperCase()} was added to the bank, the penalty was ${formatScore(penalty)}, and the board gained one column.`;
       render();
+      maybeShowOneLetterPrompt();
     }
 
     function finishRound() {
-      const lettersLeft = state.bank.filter((tile) => tile.status === "available").length;
+      const lettersLeft = availableLetterCount();
       finalSummaryEl.textContent = `Final score: ${formatScore(state.score)}. Words made: ${state.wordsMade}. Letters left: ${lettersLeft}.`;
       overlayEl.classList.add("show");
       persistState();
+    }
+
+    function submitBoard() {
+      if (!canSubmitBoard()) {
+        statusEl.innerHTML = "<strong>Not yet.</strong> Place every usable letter on the board before you can submit.";
+        return;
+      }
+      state.selectedBankId = null;
+      state.selectedGridCell = null;
+      finishRound();
     }
 
     function tileGroups() {
@@ -1636,7 +1720,7 @@
             }
             cell.addEventListener("click", () => {
               if (state.selectedBankId) {
-                statusEl.innerHTML = "<strong>Bank tile selected.</strong> Click an empty square to place it, or clear the selection first.";
+                statusEl.innerHTML = "<strong>Bank tile selected.</strong> Click an empty square to place it, or tap the same bank tile again to deselect.";
                 return;
               }
               state.selectedGridCell = selectedGridCellKey === key ? null : { row, col };
@@ -1731,6 +1815,8 @@
     function renderStatus() {
       if (!state.log.length) {
         statusEl.innerHTML = "<strong>Loading…</strong>";
+      } else if (!hasAvailableLetters()) {
+        statusEl.innerHTML = "<strong>Ready to submit.</strong> All usable letters are on the board. Hit SUBMIT when you're done.";
       } else if (isBoardEmpty()) {
         statusEl.innerHTML = "<strong>Board ready.</strong> Pick any unused tile and place it anywhere on the grid.";
       } else if (!state.selectedBankId && !state.selectedGridCell) {
@@ -1739,6 +1825,7 @@
     }
 
     function render() {
+      submitBoardButton.disabled = !canSubmitBoard();
       renderBoard();
       renderBank();
       renderWords();
@@ -1751,6 +1838,7 @@
       startGame();
     } else {
       render();
+      maybeShowOneLetterPrompt();
     }
     window.scrollTo(0, 0);
   </script>
