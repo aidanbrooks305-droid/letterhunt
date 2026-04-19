@@ -482,6 +482,10 @@
       color: var(--text);
     }
 
+    .score-ui-hidden {
+      display: none !important;
+    }
+
     .empty-state {
       color: var(--muted);
       font-size: 0.92rem;
@@ -1322,7 +1326,7 @@
         <button id="new-game" class="primary">New Game</button>
       </div>
 
-      <div class="section" style="padding: 18px 0 0;">
+      <div class="section score-ui-hidden" style="padding: 18px 0 0;">
         <div id="status" class="banner"></div>
       </div>
     </section>
@@ -1333,7 +1337,7 @@
         <div id="trade-words" class="word-list"></div>
       </section>
     </aside>
-    <div id="log" class="log" hidden></div>
+    <div id="log" class="log score-ui-hidden" hidden></div>
     </div>
 
     <section class="panel section">
@@ -1349,7 +1353,7 @@
       <div class="snake-stage">
         <div id="final-snake" class="snake-grid" aria-hidden="true"></div>
       </div>
-      <p id="final-summary"></p>
+      <p id="final-summary" class="score-ui-hidden"></p>
       <div class="action-row">
         <button id="add-random-word" class="submit">Add a New Word</button>
         <button id="play-again" class="primary">Play Again</button>
