@@ -54866,6 +54866,7 @@ foundational
 foundationed
 foundationer
 founder
+loner
 founderous
 foundership
 foundery
