@@ -17,6 +17,8 @@
       --accent-soft: #dff6f3;
       --danger: #b42318;
       --danger-soft: #fee4e2;
+      --round-color: #f472b6;
+      --round-shadow: rgba(244, 114, 182, 0.2);
       --shadow: 0 14px 40px rgba(17, 24, 39, 0.08);
       --radius: 20px;
       --tile: 56px;
@@ -123,8 +125,9 @@
       padding: 14px;
       background:
         linear-gradient(180deg, #fcfcfd, #f5f7f9);
-      border: 1px solid var(--border);
+      border: 2px solid var(--round-color);
       border-radius: 28px;
+      box-shadow: 0 0 0 3px var(--round-shadow);
       scrollbar-width: thin;
       width: 100%;
       max-width: 100%;
@@ -132,8 +135,8 @@
     }
 
     .board-wrap.placement-mode {
-      border-color: rgba(15, 118, 110, 0.4);
-      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.08);
+      border-color: var(--round-color);
+      box-shadow: 0 0 0 4px var(--round-shadow);
     }
 
     .board {
@@ -325,8 +328,15 @@
     .bank-head {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
       gap: 10px;
       margin-bottom: 12px;
+    }
+
+    .bank-word-wrap {
+      display: grid;
+      gap: 4px;
     }
 
     .bank-word {
@@ -338,6 +348,16 @@
     .bank-meta {
       color: var(--muted);
       font-size: 0.85rem;
+    }
+
+    .round-chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
     }
 
     .tiles {
@@ -484,6 +504,33 @@
 
     .score-ui-hidden {
       display: none !important;
+    }
+
+    .round-indicator {
+      display: grid;
+      gap: 6px;
+      padding: 18px;
+      border-radius: 20px;
+      border: 2px solid var(--round-color);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.82));
+      box-shadow:
+        0 16px 32px rgba(17, 24, 39, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.42);
+      text-align: center;
+    }
+
+    .round-indicator-label {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .round-indicator-name {
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.82;
     }
 
     .empty-state {
@@ -1333,6 +1380,14 @@
 
     <aside class="sidebar compact-stack">
       <section class="panel section">
+        <h3>Current Round</h3>
+        <div id="round-indicator" class="round-indicator" aria-live="polite">
+          <div id="round-indicator-label" class="round-indicator-label">Round 1</div>
+          <div id="round-indicator-name" class="round-indicator-name">Pink</div>
+        </div>
+      </section>
+
+      <section class="panel section">
         <h3>Trade Penalties</h3>
         <div id="trade-words" class="word-list"></div>
       </section>
@@ -1518,6 +1573,23 @@
       "storm", "sunrise", "tangle", "tavern", "thistle", "timber", "topaz", "torch", "travel", "tulip",
       "umber", "velvet", "voyage", "walnut", "wander", "willow", "window", "winter", "wonder", "yonder",
     ];
+    const ROUND_THEMES = [
+      { name: "Pink", color: "#f472b6", textColor: "#111827" },
+      { name: "Blue", color: "#2563eb", textColor: "#ffffff" },
+      { name: "Yellow", color: "#facc15", textColor: "#111827" },
+      { name: "Brown", color: "#8b5e3c", textColor: "#ffffff" },
+      { name: "Baby Blue", color: "#93c5fd", textColor: "#111827" },
+      { name: "Green", color: "#22c55e", textColor: "#111827" },
+      { name: "Purple", color: "#8b5cf6", textColor: "#ffffff" },
+      { name: "Orange", color: "#f97316", textColor: "#111827" },
+      { name: "Grey", color: "#9ca3af", textColor: "#111827" },
+      { name: "Hot Pink", color: "#ec4899", textColor: "#111827" },
+      { name: "Cyan", color: "#06b6d4", textColor: "#111827" },
+      { name: "Black", color: "#111827", textColor: "#ffffff" },
+      { name: "Mustard", color: "#c99700", textColor: "#111827" },
+      { name: "Forest Green", color: "#166534", textColor: "#ffffff" },
+      { name: "Baby Pink", color: "#f9a8d4", textColor: "#111827" },
+    ];
 
     const dictionary = new Set(
       window.WORD_SOURCE
@@ -1540,6 +1612,7 @@
       log: [],
       nextBankId: 1,
       sourceCounter: 1,
+      currentRound: 1,
       boardAnalysis: null,
       tradePenaltyTotal: 0,
       oneLetterPromptShown: false,
@@ -1562,6 +1635,9 @@
     const lastLetterOverlayEl = document.getElementById("last-letter-overlay");
     const tradeOverlayEl = document.getElementById("trade-overlay");
     const submitWarningOverlayEl = document.getElementById("submit-warning-overlay");
+    const roundIndicatorEl = document.getElementById("round-indicator");
+    const roundIndicatorLabelEl = document.getElementById("round-indicator-label");
+    const roundIndicatorNameEl = document.getElementById("round-indicator-name");
     const introProgressEl = document.getElementById("intro-progress");
     const introImageEl = document.getElementById("intro-image");
     const introCaptionEl = document.getElementById("intro-caption");
@@ -2110,9 +2186,53 @@
       return word;
     }
 
+    function hexToRgba(hex, alpha) {
+      const normalized = hex.replace("#", "");
+      const value = normalized.length === 3
+        ? normalized.split("").map((char) => `${char}${char}`).join("")
+        : normalized;
+      const int = Number.parseInt(value, 16);
+      const r = (int >> 16) & 255;
+      const g = (int >> 8) & 255;
+      const b = int & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function getRoundTheme(roundNumber = state.currentRound) {
+      const safeRound = Math.max(1, Math.floor(roundNumber || 1));
+      const paletteIndex = Math.min(safeRound, ROUND_THEMES.length) - 1;
+      return {
+        ...ROUND_THEMES[paletteIndex],
+        roundNumber: safeRound,
+      };
+    }
+
+    function normalizeSourceWords(sourceWords = []) {
+      let workingRound = 1;
+      return sourceWords.map((source) => {
+        const normalized = { ...source };
+        if (Number.isInteger(normalized.roundNumber) && normalized.roundNumber > 0) {
+          workingRound = Math.max(workingRound, normalized.roundNumber);
+          return normalized;
+        }
+        if (normalized.kind === "bonus") {
+          workingRound += 1;
+        }
+        normalized.roundNumber = workingRound;
+        return normalized;
+      });
+    }
+
+    function deriveCurrentRound(sourceWords = []) {
+      return sourceWords.reduce((highest, source) => {
+        const roundNumber = Number.isInteger(source.roundNumber) && source.roundNumber > 0 ? source.roundNumber : 1;
+        return Math.max(highest, roundNumber);
+      }, 1);
+    }
+
     function addWordToBank(word, kind) {
       const sourceId = state.sourceCounter++;
-      const entry = { id: sourceId, word, kind };
+      const entry = { id: sourceId, word, kind, roundNumber: state.currentRound };
       word.split("").forEach((letter, index) => {
         state.bank.push({
           id: state.nextBankId++,
@@ -2144,6 +2264,7 @@
       state.log = [];
       state.nextBankId = 1;
       state.sourceCounter = 1;
+      state.currentRound = 1;
       state.boardAnalysis = null;
       state.tradePenaltyTotal = 0;
       state.oneLetterPromptShown = false;
@@ -2211,6 +2332,7 @@
         log: state.log,
         nextBankId: state.nextBankId,
         sourceCounter: state.sourceCounter,
+        currentRound: state.currentRound,
         tradePenaltyTotal: state.tradePenaltyTotal,
         oneLetterPromptShown: state.oneLetterPromptShown,
         shareKey: state.shareKey,
@@ -2248,7 +2370,7 @@
           state.grid.push(Array.from({ length: state.boardCols }, () => null));
         }
         state.bank = saved.bank || [];
-        state.sourceWords = saved.sourceWords || [];
+        state.sourceWords = normalizeSourceWords(saved.sourceWords || []);
         state.tradeWords = saved.tradeWords || [];
         state.usedSourceWords = new Set(saved.usedSourceWords || []);
         state.selectedBankId = saved.selectedBankId ?? null;
@@ -2258,6 +2380,7 @@
         state.log = saved.log || [];
         state.nextBankId = saved.nextBankId || 1;
         state.sourceCounter = saved.sourceCounter || 1;
+        state.currentRound = Math.max(saved.currentRound || 1, deriveCurrentRound(state.sourceWords));
         state.tradePenaltyTotal = saved.tradePenaltyTotal || 0;
         state.oneLetterPromptShown = Boolean(saved.oneLetterPromptShown);
         state.shareKey = saved.shareKey || null;
@@ -2843,14 +2966,16 @@
     }
 
     function addRandomWordAfterSubmit() {
+      state.currentRound += 1;
       const newWord = chooseSourceWord();
+      const roundTheme = getRoundTheme();
       addWordToBank(newWord, "bonus");
       overlayEl.classList.remove("show");
       overlayEl.setAttribute("aria-hidden", "true");
       state.selectedBankId = null;
       state.selectedGridCell = null;
-      setBoardAnalysisAndTrack(`Added bonus word "${newWord.toUpperCase()}" after submit`);
-      statusEl.innerHTML = `<strong>New word added.</strong> ${newWord.toUpperCase()} is now in the bank.`;
+      setBoardAnalysisAndTrack(`Started round ${state.currentRound} with "${newWord.toUpperCase()}"`);
+      statusEl.innerHTML = `<strong>New round.</strong> ${newWord.toUpperCase()} started round ${state.currentRound} in ${roundTheme.name}.`;
       render();
       maybeShowOneLetterPrompt();
     }
@@ -2977,9 +3102,27 @@
 
         const head = document.createElement("div");
         head.className = "bank-head";
-        head.innerHTML = `
-          <div class="bank-word">${group.word.toUpperCase()}</div>
-        `;
+
+        const wordWrap = document.createElement("div");
+        wordWrap.className = "bank-word-wrap";
+
+        const wordEl = document.createElement("div");
+        wordEl.className = "bank-word";
+        wordEl.textContent = group.word.toUpperCase();
+        wordWrap.appendChild(wordEl);
+        head.appendChild(wordWrap);
+
+        if (group.kind === "bonus") {
+          const theme = getRoundTheme(group.roundNumber);
+          const roundChip = document.createElement("div");
+          roundChip.className = "round-chip";
+          roundChip.textContent = `Round ${group.roundNumber}`;
+          roundChip.style.background = hexToRgba(theme.color, 0.16);
+          roundChip.style.borderColor = theme.color;
+          roundChip.style.color = theme.color;
+          head.appendChild(roundChip);
+        }
+
         wrapper.appendChild(head);
 
         const tilesEl = document.createElement("div");
@@ -3015,6 +3158,20 @@
         wrapper.appendChild(tilesEl);
         bankEl.appendChild(wrapper);
       });
+    }
+
+    function renderRoundIndicator() {
+      const theme = getRoundTheme();
+      roundIndicatorLabelEl.textContent = `Round ${theme.roundNumber}`;
+      roundIndicatorNameEl.textContent = theme.name;
+      roundIndicatorEl.style.borderColor = theme.color;
+      roundIndicatorEl.style.background = `linear-gradient(180deg, ${hexToRgba(theme.color, 0.22)}, ${hexToRgba(theme.color, 0.1)})`;
+      roundIndicatorEl.style.boxShadow = `0 16px 32px rgba(17, 24, 39, 0.08), 0 0 0 4px ${hexToRgba(theme.color, 0.12)}`;
+      roundIndicatorEl.style.color = theme.textColor;
+      roundIndicatorNameEl.style.color = theme.textColor;
+
+      document.documentElement.style.setProperty("--round-color", theme.color);
+      document.documentElement.style.setProperty("--round-shadow", hexToRgba(theme.color, 0.22));
     }
 
     function renderWords() {
@@ -3058,6 +3215,7 @@
       const canSubmit = canSubmitBoard();
       submitBoardButton.classList.toggle("submit-locked", !canSubmit);
       submitBoardButton.setAttribute("aria-disabled", String(!canSubmit));
+      renderRoundIndicator();
       renderBoard();
       renderBank();
       renderWords();
