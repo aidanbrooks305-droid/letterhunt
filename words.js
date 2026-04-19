@@ -1,6 +1,5 @@
 window.WORD_SOURCE = `
 a
-aa
 aal
 aalii
 aam
