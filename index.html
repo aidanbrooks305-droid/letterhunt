@@ -359,8 +359,8 @@
     }
 
     .tile {
-      width: 64px;
-      height: 78px;
+      width: 70px;
+      height: 84px;
       border-radius: 16px;
       border: 1px solid var(--border);
       background: white;
@@ -369,7 +369,7 @@
       display: grid;
       place-items: center;
       font-weight: 800;
-      font-size: 1.5rem;
+      font-size: 1.68rem;
       padding: 0;
     }
 
@@ -973,10 +973,10 @@
       }
 
       .tile {
-        width: 36px;
-        height: 44px;
+        width: 40px;
+        height: 48px;
         border-radius: 10px;
-        font-size: 1.08rem;
+        font-size: 1.2rem;
       }
 
       .tile small {
@@ -1120,7 +1120,7 @@
       }
 
       .bank-group {
-        padding: 5px;
+        padding: 4px;
         border-radius: 10px;
       }
 
@@ -1133,10 +1133,10 @@
       }
 
       .tile {
-        width: 28px;
-        height: 34px;
+        width: 32px;
+        height: 38px;
         border-radius: 7px;
-        font-size: 0.88rem;
+        font-size: 1rem;
       }
 
       .tile small {
@@ -1379,6 +1379,7 @@
       </div>
       <p id="final-summary"></p>
       <div class="action-row">
+        <button id="add-random-word" class="submit">Add a New Word</button>
         <button id="play-again" class="primary">Play Again</button>
         <button id="share-round-final" class="ghost">Share Round</button>
       </div>
@@ -1621,6 +1622,10 @@
     document.getElementById("play-again").addEventListener("click", () => {
       overlayEl.classList.remove("show");
       startGame(currentSharedWords);
+    });
+
+    document.getElementById("add-random-word").addEventListener("click", () => {
+      addRandomWordAfterSubmit();
     });
 
     document.getElementById("share-round-final").addEventListener("click", () => {
@@ -2143,7 +2148,7 @@
           status: "available",
         });
       });
-      if (kind === "initial" || kind === "trade") {
+      if (kind === "initial" || kind === "trade" || kind === "bonus") {
         state.sourceWords.push(entry);
       }
       return entry;
@@ -2830,11 +2835,6 @@
       return availableLetterCount() > 0;
     }
 
-    function expandBoardByOneColumn() {
-      state.boardCols += 1;
-      state.grid.forEach((row) => row.push(null));
-    }
-
     function tradeSelectedLetter() {
       const selection = getTradeSelection();
       if (!selection) {
@@ -2858,11 +2858,23 @@
       const newWord = chooseSourceWord();
       const penalty = scoreWord(newWord) / 2;
       addWordToBank(newWord, "trade");
-      expandBoardByOneColumn();
       state.tradeWords.push({ word: newWord, penalty });
       state.tradePenaltyTotal += penalty;
       setBoardAnalysisAndTrack(`Traded "${tile.letter.toUpperCase()}" for "${newWord.toUpperCase()}" and took -${formatScore(penalty)}`);
-      statusEl.innerHTML = `<strong>Trade complete.</strong> ${newWord.toUpperCase()} was added to the bank, the penalty was ${formatScore(penalty)}, and the board gained one column.`;
+      statusEl.innerHTML = `<strong>Trade complete.</strong> ${newWord.toUpperCase()} was added to the bank and the penalty was ${formatScore(penalty)}.`;
+      render();
+      maybeShowOneLetterPrompt();
+    }
+
+    function addRandomWordAfterSubmit() {
+      const newWord = chooseSourceWord();
+      addWordToBank(newWord, "bonus");
+      overlayEl.classList.remove("show");
+      overlayEl.setAttribute("aria-hidden", "true");
+      state.selectedBankId = null;
+      state.selectedGridCell = null;
+      setBoardAnalysisAndTrack(`Added bonus word "${newWord.toUpperCase()}" after submit`);
+      statusEl.innerHTML = `<strong>New word added.</strong> ${newWord.toUpperCase()} is now in the bank.`;
       render();
       maybeShowOneLetterPrompt();
     }
@@ -2872,6 +2884,7 @@
       renderFinalSnake();
       finalSummaryEl.textContent = `Final score: ${formatScore(state.score)}. Words made: ${state.wordsMade}. Letters left: ${lettersLeft}.`;
       overlayEl.classList.add("show");
+      overlayEl.setAttribute("aria-hidden", "false");
       persistState();
     }
 
