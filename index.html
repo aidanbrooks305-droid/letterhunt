@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Letter Hunt</title>
+  <title>Word Salad</title>
   <style>
     :root {
       --bg: #ffffff;
@@ -112,6 +112,18 @@
         0 0 0 rgba(244, 114, 182, 0.45),
         0 0 10px rgba(244, 114, 182, 0.18),
         0 0 18px rgba(244, 114, 182, 0.12);
+    }
+
+    .brand-title {
+      margin: 0;
+      line-height: 0;
+    }
+
+    .brand-logo {
+      display: block;
+      width: clamp(220px, 42vw, 520px);
+      max-width: 100%;
+      height: auto;
     }
 
     .hero-actions {
@@ -1348,7 +1360,9 @@
     <section class="panel hero-panel">
       <section class="hero-bank-layout">
         <div class="hero-bank-header">
-          <h1>Letter Hunt</h1>
+          <h1 class="brand-title">
+            <img class="brand-logo" src="./word-salad-logo.png" alt="Word Salad">
+          </h1>
           <div class="action-row hero-actions">
             <button id="open-tutorial-hero" class="ghost">How To Play</button>
           </div>
@@ -1945,7 +1959,7 @@
       }
 
       const shareUrl = buildShareUrl(shareWords);
-      const scoreLine = `Play my Letter Hunt round with these words: ${shareWords.map((word) => word.toUpperCase()).join(", ")}. See if you can beat my score: ${formatScore(state.score)}`;
+      const scoreLine = `Play my Word Salad Round ${state.currentRound} with these words: ${shareWords.map((word) => word.toUpperCase()).join(", ")}. See if you can beat my score: ${formatScore(state.score)}`;
       const snakeText = buildShareSnakeEmoji();
       const shareText = snakeText ? `${scoreLine}\n\n${snakeText}` : scoreLine;
       const clipboardText = `${shareText}\n\n${shareUrl}`;
@@ -1953,7 +1967,7 @@
       try {
         if (navigator.share) {
           await navigator.share({
-            title: "Letter Hunt",
+            title: "Word Salad",
             text: shareText,
             url: shareUrl,
           });
@@ -2746,10 +2760,15 @@
       const invalidCellKeys = new Set();
       const sequenceCellKeys = new Set();
       const sequenceIdsByCell = new Map();
-      const connectedSequenceIds = new Set();
+      const connectedPlayableSequenceIds = new Set();
       let score = 0;
+      const sequenceRecords = sequences.map((sequence) => ({
+        ...sequence,
+        points: scoreWord(sequence.word),
+        playable: isPlayableWord(sequence.word),
+      }));
 
-      sequences.forEach((sequence, index) => {
+      sequenceRecords.forEach((sequence, index) => {
         sequence.cells.forEach((cell) => {
           const key = `${cell.row}:${cell.col}`;
           sequenceCellKeys.add(key);
@@ -2760,22 +2779,23 @@
       });
 
       sequenceIdsByCell.forEach((ids) => {
-        if (ids.length < 2) return;
-        ids.forEach((id) => connectedSequenceIds.add(id));
+        // A word only scores when it crosses another playable word at a shared tile.
+        const playableIds = ids.filter((id) => sequenceRecords[id].playable);
+        if (playableIds.length < 2) return;
+        playableIds.forEach((id) => connectedPlayableSequenceIds.add(id));
       });
 
-      sequences.forEach((sequence, index) => {
-        const points = scoreWord(sequence.word);
-        if (!isPlayableWord(sequence.word)) {
-          invalidWords.push({ ...sequence, points });
-          score -= points;
+      sequenceRecords.forEach((sequence, index) => {
+        if (!sequence.playable) {
+          invalidWords.push(sequence);
+          score -= sequence.points;
           sequence.cells.forEach((cell) => invalidCellKeys.add(`${cell.row}:${cell.col}`));
           return;
         }
 
-        if (connectedSequenceIds.has(index)) {
-          validWords.push({ ...sequence, points });
-          score += points;
+        if (connectedPlayableSequenceIds.has(index)) {
+          validWords.push(sequence);
+          score += sequence.points;
           sequence.cells.forEach((cell) => validCellKeys.add(`${cell.row}:${cell.col}`));
         }
       });
@@ -2789,13 +2809,7 @@
           if (validCellKeys.has(key) || invalidCellKeys.has(key)) continue;
           const points = scoreWord(cell.letter);
           if (isPlayableWord(cell.letter)) {
-            validWords.push({
-              direction: "single",
-              word: cell.letter,
-              cells: [{ row, col, letter: cell.letter, bankId: cell.bankId }],
-              points,
-            });
-            score += points;
+            continue;
           } else {
             invalidWords.push({
               direction: "single",
@@ -2983,7 +2997,7 @@
     function finishRound() {
       const lettersLeft = availableLetterCount();
       renderFinalSnake();
-      finalSummaryEl.textContent = `Final score: ${formatScore(state.score)}. Words made: ${state.wordsMade}. Letters left: ${lettersLeft}.`;
+      finalSummaryEl.textContent = `Round ${state.currentRound}. Final score: ${formatScore(state.score)}. Words made: ${state.wordsMade}. Letters left: ${lettersLeft}.`;
       overlayEl.classList.add("show");
       overlayEl.setAttribute("aria-hidden", "false");
       persistState();
