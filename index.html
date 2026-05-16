@@ -2795,6 +2795,44 @@
       return [...new Set(candidates.filter(Boolean))];
     }
 
+    function getRegularPluralDictionaryBase(word) {
+      const lower = word.toLowerCase();
+      if (lower.length <= 2 || !lower.endsWith("s") || lower.endsWith("ss")) return null;
+
+      if (lower.endsWith("ies") && lower.length > 3) {
+        const candidate = lower.slice(0, -3) + "y";
+        if (dictionary.has(candidate) && /[^aeiou]y$/.test(candidate)) {
+          return candidate;
+        }
+      }
+
+      if (lower.endsWith("ves") && lower.length > 3) {
+        const candidateF = lower.slice(0, -3) + "f";
+        const candidateFe = lower.slice(0, -3) + "fe";
+        if (dictionary.has(candidateFe)) return candidateFe;
+        if (dictionary.has(candidateF)) return candidateF;
+      }
+
+      if (lower.endsWith("es") && lower.length > 2) {
+        const candidate = lower.slice(0, -2);
+        if (dictionary.has(candidate) && /(s|x|z|ch|sh|o)$/.test(candidate)) {
+          return candidate;
+        }
+      }
+
+      const candidate = lower.slice(0, -1);
+      if (
+        dictionary.has(candidate)
+        && !/(s|x|z|ch|sh|o)$/.test(candidate)
+        && !/[^aeiou]y$/.test(candidate)
+        && !/(f|fe)$/.test(candidate)
+      ) {
+        return candidate;
+      }
+
+      return null;
+    }
+
     function isBlockedBySource(word) {
       const lower = word.toLowerCase();
       const pluralBases = getRegularPluralBases(lower);
@@ -2814,7 +2852,7 @@
         if (!ALLOWED_TWO_LETTER_WORDS.has(lower)) {
           return { playable: false, reason: "not_dictionary" };
         }
-      } else if (!dictionary.has(lower)) {
+      } else if (!dictionary.has(lower) && !getRegularPluralDictionaryBase(lower)) {
         return { playable: false, reason: "not_dictionary" };
       }
 
@@ -3310,7 +3348,9 @@
               dynamicShadows.push("0 0 0 4px rgba(15, 118, 110, 0.24)");
             }
             cell.addEventListener("pointerdown", (event) => {
-              if (state.selectedBankId || event.pointerType === "mouse" && event.button !== 0) return;
+              if (event.pointerType === "mouse" && event.button !== 0) return;
+              state.selectedBankId = null;
+              state.selectedGridCell = null;
               beginDrag({
                 type: "board",
                 fromRow: row,
@@ -3399,6 +3439,8 @@
           tileButton.disabled = tile.status !== "available";
           tileButton.addEventListener("pointerdown", (event) => {
             if (tile.status !== "available" || event.pointerType === "mouse" && event.button !== 0) return;
+            state.selectedGridCell = null;
+            state.selectedBankId = null;
             beginDrag({
               type: "bank",
               bankId: tile.id,
