@@ -488,6 +488,40 @@
       font-size: calc(var(--tile) * 0.45);
     }
 
+    .poof {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: calc(var(--tile) * 0.9);
+      height: calc(var(--tile) * 0.9);
+      border-radius: 999px;
+      pointer-events: none;
+      z-index: 10000;
+      transform: translate(-50%, -50%) scale(0.45);
+      opacity: 0;
+      filter: blur(1px);
+      background:
+        radial-gradient(circle at 28% 34%, rgba(255, 255, 255, 0.96) 0 18%, transparent 52%),
+        radial-gradient(circle at 68% 34%, rgba(255, 255, 255, 0.84) 0 16%, transparent 50%),
+        radial-gradient(circle at 54% 70%, rgba(255, 255, 255, 0.74) 0 22%, transparent 56%),
+        radial-gradient(circle at 50% 52%, rgba(156, 163, 175, 0.34) 0 40%, transparent 68%);
+      animation: poof-smoke 420ms ease-out forwards;
+    }
+
+    @keyframes poof-smoke {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.45);
+      }
+      18% {
+        opacity: 0.95;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -54%) scale(1.8);
+      }
+    }
+
     .log {
       flex-direction: column;
       gap: 8px;
@@ -2093,6 +2127,21 @@
       return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     }
 
+    function getBoardCellRect(row, col) {
+      const cellEl = boardEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+      return cellEl ? cellEl.getBoundingClientRect() : null;
+    }
+
+    function spawnPoofAtRect(rect) {
+      if (!rect) return;
+      const poof = document.createElement("div");
+      poof.className = "poof";
+      poof.style.left = `${rect.left + rect.width / 2}px`;
+      poof.style.top = `${rect.top + rect.height / 2}px`;
+      document.body.appendChild(poof);
+      window.setTimeout(() => poof.remove(), 450);
+    }
+
     function positionDragGhost(x, y) {
       dragGhostEl.style.left = `${x}px`;
       dragGhostEl.style.top = `${y}px`;
@@ -2149,6 +2198,10 @@
           const glowSize = 10 + layer * 4;
           shadows.push(`0 0 0 ${spread}px ${palette.edge}`);
           shadows.push(`0 0 ${glowSize}px ${palette.glow}`);
+          if (sequence.word.length >= 10) {
+            shadows.push("0 0 0 5px rgba(244, 114, 182, 0.26)");
+            shadows.push("0 0 22px rgba(244, 114, 182, 0.55)");
+          }
           auraMap.set(key, shadows);
         });
       });
@@ -2868,12 +2921,21 @@
       const sequenceIdsByCell = new Map();
       const connectedPlayableSequenceIds = new Set();
       const blockedSourceWords = [];
+      const occupiedCellKeys = new Set();
       let score = 0;
       const sequenceRecords = sequences.map((sequence) => ({
         ...sequence,
         points: scoreWord(sequence.word),
         ...getWordValidation(sequence.word),
       }));
+
+      for (let row = 0; row < boardRows(); row += 1) {
+        for (let col = 0; col < boardCols(); col += 1) {
+          if (state.grid[row][col]) {
+            occupiedCellKeys.add(`${row}:${col}`);
+          }
+        }
+      }
 
       sequenceRecords.forEach((sequence, index) => {
         sequence.cells.forEach((cell) => {
@@ -2892,6 +2954,23 @@
         playableIds.forEach((id) => connectedPlayableSequenceIds.add(id));
       });
 
+      const playableSequenceIds = sequenceRecords
+        .map((sequence, index) => (sequence.playable ? index : -1))
+        .filter((index) => index >= 0);
+      let standaloneStarterSequenceId = -1;
+      if (playableSequenceIds.length === 1) {
+        const candidateId = playableSequenceIds[0];
+        const candidateKeys = new Set(
+          sequenceRecords[candidateId].cells.map((cell) => `${cell.row}:${cell.col}`)
+        );
+        if (
+          candidateKeys.size === occupiedCellKeys.size
+          && [...candidateKeys].every((key) => occupiedCellKeys.has(key))
+        ) {
+          standaloneStarterSequenceId = candidateId;
+        }
+      }
+
       sequenceRecords.forEach((sequence, index) => {
         if (!sequence.playable) {
           invalidWords.push(sequence);
@@ -2903,7 +2982,7 @@
           return;
         }
 
-        if (connectedPlayableSequenceIds.has(index)) {
+        if (connectedPlayableSequenceIds.has(index) || index === standaloneStarterSequenceId) {
           validWords.push(sequence);
           score += sequence.points;
           sequence.cells.forEach((cell) => validCellKeys.add(`${cell.row}:${cell.col}`));
@@ -3084,21 +3163,19 @@
     function returnGridTileToBank(fromRow, fromCol) {
       const cell = state.grid[fromRow][fromCol];
       if (!cell) return;
-      if (isCellPartOfWord(fromRow, fromCol)) {
-        statusEl.innerHTML = "<strong>Can't return that tile.</strong> Only loose letters that aren't part of a current word can go back to the bank.";
-        return;
-      }
 
       const tile = state.bank.find((item) => item.id === cell.bankId);
       if (!tile) return;
+      const sourceRect = getBoardCellRect(fromRow, fromCol);
 
       saveUndoSnapshot();
       state.grid[fromRow][fromCol] = null;
       tile.status = "available";
       state.selectedGridCell = null;
       setBoardAnalysisAndTrack(`Returned "${cell.letter.toUpperCase()}" to the bank`);
-      statusEl.innerHTML = "<strong>Returned to bank.</strong> That loose letter is usable again.";
+      statusEl.innerHTML = "<strong>Returned to bank.</strong> That letter is usable again.";
       render();
+      spawnPoofAtRect(sourceRect);
       maybeShowOneLetterPrompt();
     }
 
