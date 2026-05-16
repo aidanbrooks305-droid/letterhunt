@@ -128,7 +128,10 @@
 
     .hero-actions {
       margin: 0;
+      flex-direction: column;
+      flex-wrap: nowrap;
       justify-content: flex-end;
+      align-items: flex-end;
       align-self: start;
     }
 
@@ -295,6 +298,11 @@
     .danger {
       background: var(--danger-soft);
       color: var(--danger);
+    }
+
+    .undo-button {
+      background: #f472b6;
+      color: #111827;
     }
 
     .pill-row,
@@ -1363,12 +1371,13 @@
           <h1 class="brand-title">
             <img class="brand-logo" src="./word-salad-logo.png" alt="Word Salad">
           </h1>
-          <div class="action-row hero-actions">
-            <button id="open-tutorial-hero" class="ghost">How To Play</button>
-          </div>
+        <div class="action-row hero-actions">
+          <button id="open-tutorial-hero" class="ghost">How To Play</button>
+          <button id="undo-move" class="undo-button" disabled>Undo</button>
+        </div>
         </div>
         <div>
-          <h2 style="margin: 0 0 12px; font-size: 1rem; letter-spacing: -0.02em;">Tap or Drag a Letter to the Grid</h2>
+          <h2 style="margin: 0 0 12px; font-size: 1rem; letter-spacing: -0.02em;">Use these Tiles to Make a New Crossword</h2>
           <div id="bank" class="bank-groups"></div>
         </div>
       </section>
@@ -1484,8 +1493,8 @@
 
   <div id="submit-warning-overlay" class="overlay" aria-hidden="true">
     <div class="modal intro-modal">
-      <h2>HOLD YOUR HORSES</h2>
-      <p>You can't submit until you used every letter.</p>
+      <h2 id="submit-warning-title">HOLD YOUR HORSES</h2>
+      <p id="submit-warning-message">You can't submit until you used every letter.</p>
       <div class="action-row">
         <button id="close-submit-warning" class="primary">Keep Playing</button>
       </div>
@@ -1631,6 +1640,7 @@
       tradePenaltyTotal: 0,
       oneLetterPromptShown: false,
       shareKey: null,
+      undoSnapshot: null,
     };
 
     const sharedWordsFromUrl = getSharedWordsFromUrl();
@@ -1639,6 +1649,7 @@
 
     const boardEl = document.getElementById("board");
     const boardWrapEl = document.querySelector(".board-wrap");
+    const heroPanelEl = document.querySelector(".hero-panel");
     const bankEl = document.getElementById("bank");
     const tradeWordsEl = document.getElementById("trade-words");
     const logEl = document.getElementById("log");
@@ -1649,6 +1660,8 @@
     const lastLetterOverlayEl = document.getElementById("last-letter-overlay");
     const tradeOverlayEl = document.getElementById("trade-overlay");
     const submitWarningOverlayEl = document.getElementById("submit-warning-overlay");
+    const submitWarningTitleEl = document.getElementById("submit-warning-title");
+    const submitWarningMessageEl = document.getElementById("submit-warning-message");
     const roundIndicatorEl = document.getElementById("round-indicator");
     const roundIndicatorLabelEl = document.getElementById("round-indicator-label");
     const roundIndicatorNameEl = document.getElementById("round-indicator-name");
@@ -1662,6 +1675,7 @@
     const finalSummaryEl = document.getElementById("final-summary");
     const finalSnakeEl = document.getElementById("final-snake");
     const submitBoardButton = document.getElementById("submit-board");
+    const undoMoveButton = document.getElementById("undo-move");
     const dragGhostEl = document.getElementById("drag-ghost");
     let dragState = null;
     let suppressClick = false;
@@ -1723,6 +1737,10 @@
       openRoundIntro({ showWordsAfter: false });
     });
 
+    undoMoveButton.addEventListener("click", () => {
+      undoLastMove();
+    });
+
     document.getElementById("continue-last-letter").addEventListener("click", () => {
       closeLastLetterPrompt();
     });
@@ -1777,7 +1795,8 @@
         }, 0);
         const dropTarget = document.elementFromPoint(event.clientX, event.clientY);
         const target = dropTarget?.closest(".cell");
-        const bankTarget = dropTarget?.closest("#bank, .hero-bank-layout");
+        const bankTarget = dropTarget?.closest("#bank, .hero-bank-layout, .hero-panel");
+        const droppedInBankZone = bankTarget || isPointInsideElement(heroPanelEl, event.clientX, event.clientY);
         clearDragGhost();
         document.body.classList.remove("dragging");
         if (target) {
@@ -1788,7 +1807,7 @@
           } else if (currentDrag.type === "board") {
             moveGridTile(currentDrag.fromRow, currentDrag.fromCol, row, col);
           }
-        } else if (bankTarget && currentDrag.type === "board") {
+        } else if (droppedInBankZone && currentDrag.type === "board") {
           returnGridTileToBank(currentDrag.fromRow, currentDrag.fromCol);
         }
         return;
@@ -1992,13 +2011,86 @@
     }
 
     function canSubmitBoard() {
-      return availableLetterCount() === 0;
+      return availableLetterCount() === 0
+        && !!state.boardAnalysis
+        && state.boardAnalysis.isCrosswordReady;
     }
 
     function consumeSuppressedClick() {
       if (!suppressClick) return false;
       suppressClick = false;
       return true;
+    }
+
+    function cloneGridState(grid) {
+      return grid.map((row) => row.map((cell) => (cell ? { ...cell } : null)));
+    }
+
+    function createUndoSnapshot() {
+      return {
+        boardCols: state.boardCols,
+        grid: cloneGridState(state.grid),
+        bank: state.bank.map((tile) => ({ ...tile })),
+        sourceWords: state.sourceWords.map((source) => ({ ...source })),
+        tradeWords: state.tradeWords.map((trade) => ({ ...trade })),
+        usedSourceWords: [...state.usedSourceWords],
+        selectedBankId: state.selectedBankId,
+        selectedGridCell: state.selectedGridCell ? { ...state.selectedGridCell } : null,
+        log: [...state.log],
+        nextBankId: state.nextBankId,
+        sourceCounter: state.sourceCounter,
+        currentRound: state.currentRound,
+        tradePenaltyTotal: state.tradePenaltyTotal,
+        oneLetterPromptShown: state.oneLetterPromptShown,
+        shareKey: state.shareKey,
+      };
+    }
+
+    function saveUndoSnapshot() {
+      state.undoSnapshot = createUndoSnapshot();
+    }
+
+    function restoreUndoSnapshot(snapshot) {
+      state.boardCols = snapshot.boardCols;
+      state.grid = cloneGridState(snapshot.grid);
+      state.bank = snapshot.bank.map((tile) => ({ ...tile }));
+      state.sourceWords = snapshot.sourceWords.map((source) => ({ ...source }));
+      state.tradeWords = snapshot.tradeWords.map((trade) => ({ ...trade }));
+      state.usedSourceWords = new Set(snapshot.usedSourceWords);
+      state.selectedBankId = snapshot.selectedBankId;
+      state.selectedGridCell = snapshot.selectedGridCell ? { ...snapshot.selectedGridCell } : null;
+      state.log = [...snapshot.log];
+      state.nextBankId = snapshot.nextBankId;
+      state.sourceCounter = snapshot.sourceCounter;
+      state.currentRound = snapshot.currentRound;
+      state.tradePenaltyTotal = snapshot.tradePenaltyTotal;
+      state.oneLetterPromptShown = snapshot.oneLetterPromptShown;
+      state.shareKey = snapshot.shareKey;
+      state.boardAnalysis = analyzeBoard();
+      state.score = state.boardAnalysis.score - state.tradePenaltyTotal;
+      state.wordsMade = state.boardAnalysis.validWords.filter((sequence) => sequence.direction !== "single").length;
+    }
+
+    function undoLastMove() {
+      if (!state.undoSnapshot) {
+        statusEl.innerHTML = "<strong>Nothing to undo.</strong> Make a move first.";
+        return;
+      }
+
+      const snapshot = state.undoSnapshot;
+      state.undoSnapshot = null;
+      restoreUndoSnapshot(snapshot);
+      state.selectedBankId = null;
+      state.selectedGridCell = null;
+      pushLog("Undid the last move.");
+      statusEl.innerHTML = "<strong>Last move undone.</strong> You're back where you were one move ago.";
+      render();
+    }
+
+    function isPointInsideElement(element, x, y) {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     }
 
     function positionDragGhost(x, y) {
@@ -2283,6 +2375,7 @@
       state.tradePenaltyTotal = 0;
       state.oneLetterPromptShown = false;
       state.shareKey = null;
+      state.undoSnapshot = null;
     }
 
     function startGame(sharedWords = null, options = {}) {
@@ -2302,6 +2395,7 @@
         state.shareKey = buildShareKey(getShareWordsForCurrentRound());
       }
       state.boardAnalysis = analyzeBoard();
+      state.undoSnapshot = null;
       pushLog(
         normalizedShareWords
           ? "Shared round loaded with matching source words. Place any letter anywhere, or move placed letters to reshape the board."
@@ -2398,6 +2492,7 @@
         state.tradePenaltyTotal = saved.tradePenaltyTotal || 0;
         state.oneLetterPromptShown = Boolean(saved.oneLetterPromptShown);
         state.shareKey = saved.shareKey || null;
+        state.undoSnapshot = null;
         state.boardAnalysis = analyzeBoard();
         state.score = state.boardAnalysis.score - state.tradePenaltyTotal;
         state.wordsMade = state.boardAnalysis.validWords.filter((sequence) => sequence.direction !== "single").length;
@@ -2514,7 +2609,12 @@
       tradeOverlayEl.setAttribute("aria-hidden", "true");
     }
 
-    function openSubmitWarning() {
+    function openSubmitWarning(
+      title = "HOLD YOUR HORSES",
+      message = "You can't submit until you used every letter."
+    ) {
+      submitWarningTitleEl.textContent = title;
+      submitWarningMessageEl.textContent = message;
       submitWarningOverlayEl.classList.add("show");
       submitWarningOverlayEl.setAttribute("aria-hidden", "false");
     }
@@ -2625,21 +2725,9 @@
       };
     }
 
-    function isBlockedBySource(word) {
+    function getRegularPluralBases(word) {
       const lower = word.toLowerCase();
-      return state.sourceWords.some((source) => source.word === lower);
-    }
-
-    function isBaseDictionaryWord(word) {
-      if (!word) return false;
-      if (word.length === 1) return word === "a" || word === "i";
-      if (word.length === 2) return ALLOWED_TWO_LETTER_WORDS.has(word);
-      return dictionary.has(word);
-    }
-
-    function isRegularPluralWord(word) {
-      const lower = word.toLowerCase();
-      if (lower.length <= 2 || !lower.endsWith("s") || lower.endsWith("ss")) return false;
+      if (lower.length <= 2 || !lower.endsWith("s") || lower.endsWith("ss")) return [];
 
       const candidates = [];
       if (lower.endsWith("ies") && lower.length > 3) {
@@ -2651,27 +2739,45 @@
       }
       candidates.push(lower.slice(0, -1));
 
-      const seen = new Set();
-      return candidates.some((candidate) => {
-        if (!candidate || seen.has(candidate)) return false;
-        seen.add(candidate);
-        return isBaseDictionaryWord(candidate);
-      });
+      return [...new Set(candidates.filter(Boolean))];
+    }
+
+    function isBlockedBySource(word) {
+      const lower = word.toLowerCase();
+      const pluralBases = getRegularPluralBases(lower);
+      return state.sourceWords.some((source) => source.word === lower || pluralBases.includes(source.word));
+    }
+
+    function getWordValidation(word) {
+      const lower = word.toLowerCase();
+      if (!/^[a-z]+$/.test(lower)) {
+        return { playable: false, reason: "not_dictionary" };
+      }
+      if (lower.length === 1) {
+        if (lower !== "a" && lower !== "i") {
+          return { playable: false, reason: "not_dictionary" };
+        }
+      } else if (lower.length === 2) {
+        if (!ALLOWED_TWO_LETTER_WORDS.has(lower)) {
+          return { playable: false, reason: "not_dictionary" };
+        }
+      } else if (!dictionary.has(lower)) {
+        return { playable: false, reason: "not_dictionary" };
+      }
+
+      if (isBlockedBySource(lower)) {
+        return { playable: false, reason: "blocked_source" };
+      }
+
+      return { playable: true, reason: null };
     }
 
     function isDictionaryWord(word) {
-      const lower = word.toLowerCase();
-      if (lower.length === 1) return lower === "a" || lower === "i";
-      if (lower.length === 2) return ALLOWED_TWO_LETTER_WORDS.has(lower);
-      return dictionary.has(lower) || isRegularPluralWord(lower);
+      return getWordValidation(word).reason !== "not_dictionary";
     }
 
     function isPlayableWord(word) {
-      const lower = word.toLowerCase();
-      if (!/^[a-z]+$/.test(lower)) return false;
-      if (!isDictionaryWord(lower)) return false;
-      if (isBlockedBySource(lower)) return false;
-      return true;
+      return getWordValidation(word).playable;
     }
 
     function availablePlacements() {
@@ -2761,11 +2867,12 @@
       const sequenceCellKeys = new Set();
       const sequenceIdsByCell = new Map();
       const connectedPlayableSequenceIds = new Set();
+      const blockedSourceWords = [];
       let score = 0;
       const sequenceRecords = sequences.map((sequence) => ({
         ...sequence,
         points: scoreWord(sequence.word),
-        playable: isPlayableWord(sequence.word),
+        ...getWordValidation(sequence.word),
       }));
 
       sequenceRecords.forEach((sequence, index) => {
@@ -2788,6 +2895,9 @@
       sequenceRecords.forEach((sequence, index) => {
         if (!sequence.playable) {
           invalidWords.push(sequence);
+          if (sequence.reason === "blocked_source") {
+            blockedSourceWords.push(sequence);
+          }
           score -= sequence.points;
           sequence.cells.forEach((cell) => invalidCellKeys.add(`${cell.row}:${cell.col}`));
           return;
@@ -2797,7 +2907,14 @@
           validWords.push(sequence);
           score += sequence.points;
           sequence.cells.forEach((cell) => validCellKeys.add(`${cell.row}:${cell.col}`));
+          return;
         }
+
+        invalidWords.push({
+          ...sequence,
+          reason: "not_crossword",
+        });
+        sequence.cells.forEach((cell) => invalidCellKeys.add(`${cell.row}:${cell.col}`));
       });
 
       for (let row = 0; row < boardRows(); row += 1) {
@@ -2808,15 +2925,28 @@
           if (sequenceCellKeys.has(key)) continue;
           if (validCellKeys.has(key) || invalidCellKeys.has(key)) continue;
           const points = scoreWord(cell.letter);
-          if (isPlayableWord(cell.letter)) {
-            continue;
-          } else {
+          const validation = getWordValidation(cell.letter);
+          if (validation.playable) {
             invalidWords.push({
               direction: "single",
               word: cell.letter,
               cells: [{ row, col, letter: cell.letter, bankId: cell.bankId }],
               points,
+              reason: "not_crossword",
             });
+            invalidCellKeys.add(key);
+          } else {
+            const invalidSequence = {
+              direction: "single",
+              word: cell.letter,
+              cells: [{ row, col, letter: cell.letter, bankId: cell.bankId }],
+              points,
+              reason: validation.reason,
+            };
+            invalidWords.push(invalidSequence);
+            if (validation.reason === "blocked_source") {
+              blockedSourceWords.push(invalidSequence);
+            }
             score -= points;
             invalidCellKeys.add(key);
           }
@@ -2828,6 +2958,8 @@
         validWords,
         invalidWords,
         invalidCellKeys,
+        blockedSourceWords,
+        isCrosswordReady: invalidWords.length === 0 && validWords.length > 0,
       };
     }
 
@@ -2852,6 +2984,23 @@
       pushLog(`${actionLabel} (${parts.join(", ")}).`);
     }
 
+    function blockedSourceWarningKey(analysis) {
+      if (!analysis || !analysis.blockedSourceWords.length) return "";
+      return analysis.blockedSourceWords
+        .map((sequence) => `${sequence.word}:${sequence.cells.map((cell) => `${cell.row}:${cell.col}`).join("|")}`)
+        .sort()
+        .join("||");
+    }
+
+    function maybeWarnBlockedSourceWord(previousAnalysis) {
+      if (!state.boardAnalysis) return;
+      const nextKey = blockedSourceWarningKey(state.boardAnalysis);
+      if (!nextKey) return;
+      const previousKey = blockedSourceWarningKey(previousAnalysis);
+      if (nextKey === previousKey) return;
+      openSubmitWarning("NOPE", "You can't just steal my words as your own!");
+    }
+
     function placeTile(tile, row, col) {
       if (!tile) return;
       if (tile.status !== "available") return;
@@ -2860,20 +3009,25 @@
         return;
       }
 
+      saveUndoSnapshot();
       state.grid[row][col] = {
         letter: tile.letter,
         bankId: tile.id,
       };
       tile.status = "used";
       state.selectedBankId = null;
+      const previousAnalysis = state.boardAnalysis;
       setBoardAnalysisAndTrack(`Placed "${tile.letter.toUpperCase()}"`);
+      maybeWarnBlockedSourceWord(previousAnalysis);
       const lettersLeft = availableLetterCount();
       const invalidCount = state.boardAnalysis.invalidWords.length;
       if (lettersLeft === 0) {
-        statusEl.innerHTML = "<strong>All letters placed.</strong> Hit SUBMIT when you're ready to score this board.";
+        statusEl.innerHTML = canSubmitBoard()
+          ? "<strong>All letters placed.</strong> Hit SUBMIT when you're ready to score this crossword."
+          : "<strong>All letters placed.</strong> Make sure every word is part of a real crossword before you submit.";
       } else {
         statusEl.innerHTML = invalidCount
-          ? `<strong>Placed.</strong> ${invalidCount} invalid sequence${invalidCount === 1 ? "" : "s"} currently scoring negative and highlighted in red.`
+          ? `<strong>Placed.</strong> ${invalidCount} sequence${invalidCount === 1 ? "" : "s"} still isn't crossword-valid and is highlighted in red.`
           : "<strong>Placed.</strong> The board is fully valid right now.";
       }
 
@@ -2906,14 +3060,17 @@
         return;
       }
 
+      saveUndoSnapshot();
       state.grid[fromRow][fromCol] = null;
       state.grid[row][col] = cell;
       state.selectedGridCell = null;
+      const previousAnalysis = state.boardAnalysis;
       setBoardAnalysisAndTrack(`Moved "${cell.letter.toUpperCase()}"`);
+      maybeWarnBlockedSourceWord(previousAnalysis);
 
       const invalidCount = state.boardAnalysis.invalidWords.length;
       statusEl.innerHTML = invalidCount
-        ? `<strong>Move complete.</strong> ${invalidCount} invalid sequence${invalidCount === 1 ? "" : "s"} currently scoring negative.`
+        ? `<strong>Move complete.</strong> ${invalidCount} sequence${invalidCount === 1 ? "" : "s"} still isn't crossword-valid.`
         : "<strong>Move complete.</strong> The board is fully valid right now.";
 
       render();
@@ -2935,6 +3092,7 @@
       const tile = state.bank.find((item) => item.id === cell.bankId);
       if (!tile) return;
 
+      saveUndoSnapshot();
       state.grid[fromRow][fromCol] = null;
       tile.status = "available";
       state.selectedGridCell = null;
@@ -2960,6 +3118,7 @@
       }
 
       const tile = selection.tile;
+      saveUndoSnapshot();
       if (selection.source === "board") {
         state.grid[selection.row][selection.col] = null;
       }
@@ -2988,6 +3147,7 @@
       overlayEl.setAttribute("aria-hidden", "true");
       state.selectedBankId = null;
       state.selectedGridCell = null;
+      state.undoSnapshot = null;
       setBoardAnalysisAndTrack(`Started round ${state.currentRound} with "${newWord.toUpperCase()}"`);
       statusEl.innerHTML = `<strong>New round.</strong> ${newWord.toUpperCase()} started round ${state.currentRound} in ${roundTheme.name}.`;
       render();
@@ -2996,6 +3156,7 @@
 
     function finishRound() {
       const lettersLeft = availableLetterCount();
+      state.undoSnapshot = null;
       renderFinalSnake();
       finalSummaryEl.textContent = `Round ${state.currentRound}. Final score: ${formatScore(state.score)}. Words made: ${state.wordsMade}. Letters left: ${lettersLeft}.`;
       overlayEl.classList.add("show");
@@ -3005,7 +3166,14 @@
 
     function submitBoard() {
       if (!canSubmitBoard()) {
-        openSubmitWarning();
+        if (availableLetterCount() > 0) {
+          openSubmitWarning("HOLD YOUR HORSES", "You can't submit until you used every letter.");
+        } else {
+          openSubmitWarning(
+            "NOT A CROSSWORD YET",
+            "Only real crosswords can be submitted. Words can't just touch. They need to cross."
+          );
+        }
         return;
       }
       state.selectedBankId = null;
@@ -3217,7 +3385,9 @@
       if (!state.log.length) {
         statusEl.innerHTML = "<strong>Loading…</strong>";
       } else if (!hasAvailableLetters()) {
-        statusEl.innerHTML = "<strong>Ready to submit.</strong> All usable letters are on the board. Hit SUBMIT when you're done.";
+        statusEl.innerHTML = canSubmitBoard()
+          ? "<strong>Ready to submit.</strong> All usable letters are on the board and your crossword is valid."
+          : "<strong>Keep shaping it.</strong> All letters are down, but every word still has to be part of a real crossword.";
       } else if (isBoardEmpty()) {
         statusEl.innerHTML = "<strong>Board ready.</strong> Pick any unused tile and place it anywhere on the grid.";
       } else if (!state.selectedBankId && !state.selectedGridCell) {
@@ -3229,6 +3399,7 @@
       const canSubmit = canSubmitBoard();
       submitBoardButton.classList.toggle("submit-locked", !canSubmit);
       submitBoardButton.setAttribute("aria-disabled", String(!canSubmit));
+      undoMoveButton.disabled = !state.undoSnapshot;
       renderRoundIndicator();
       renderBoard();
       renderBank();
