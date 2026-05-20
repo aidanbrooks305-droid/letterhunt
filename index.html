@@ -1542,9 +1542,14 @@
   <script>
     const BOARD_ROWS = 10;
     const INITIAL_BOARD_COLS = 10;
-    const STORAGE_KEY = "letter-hunt-save-v1";
+    const STORAGE_KEY_PREFIX = "letter-hunt-save-v2";
     const TUTORIAL_SEEN_KEY = "letter-hunt-tutorial-seen-v1";
+    const ACTIVE_CONTEXT_KEY = "letter-hunt-active-context-v1";
     const SHARE_PARAM = "words";
+    const DAILY_TIME_ZONE = "America/New_York";
+    const ROUND_MODE_DAILY = "daily";
+    const ROUND_MODE_RANDOM = "random";
+    const ROUND_MODE_SHARE = "share";
     const ALLOWED_TWO_LETTER_WORDS = new Set([
       "am", "an", "as", "at",
       "be", "by", "do", "go",
@@ -1630,6 +1635,34 @@
       "storm", "sunrise", "tangle", "tavern", "thistle", "timber", "topaz", "torch", "travel", "tulip",
       "umber", "velvet", "voyage", "walnut", "wander", "willow", "window", "winter", "wonder", "yonder",
     ];
+    const HOLIDAY_WORD_SETS = {
+      newYear: ["midnight", "sparkle", "toast"],
+      mlk: ["dream", "march", "peace"],
+      presidents: ["eagle", "union", "honor"],
+      memorial: ["memory", "honor", "parade"],
+      juneteenth: ["freedom", "liberty", "parade"],
+      independence: ["liberty", "banner", "rocket"],
+      labor: ["worker", "hammer", "union"],
+      columbus: ["voyage", "harbor", "journey"],
+      veterans: ["service", "honor", "valor"],
+      thanksgiving: ["family", "harvest", "feast"],
+      christmas: ["winter", "candle", "gift"],
+      hanukkah: ["candle", "miracle", "light"],
+    };
+    const HANUKKAH_FIRST_NIGHT_BY_YEAR = {
+      2025: "2025-12-14",
+      2026: "2026-12-04",
+      2027: "2027-12-24",
+      2028: "2028-12-12",
+      2029: "2029-12-01",
+      2030: "2030-12-20",
+      2031: "2031-12-10",
+      2032: "2032-11-28",
+      2033: "2033-12-18",
+      2034: "2034-12-08",
+      2035: "2035-12-26",
+    };
+    const holidayOverrideCache = new Map();
     const ROUND_THEMES = [
       { name: "Pink", color: "#f472b6", textColor: "#111827" },
       { name: "Blue", color: "#2563eb", textColor: "#ffffff" },
@@ -1677,9 +1710,20 @@
       undoSnapshot: null,
     };
 
+    const dailyPuzzleContext = getDailyPuzzleContext();
     const sharedWordsFromUrl = getSharedWordsFromUrl();
-    let currentSharedWords = sharedWordsFromUrl ? [...sharedWordsFromUrl] : null;
+    const currentDailyDateKey = dailyPuzzleContext.dateKey;
+    const currentDailyWords = [...dailyPuzzleContext.words];
+    let currentRoundMode = sharedWordsFromUrl ? ROUND_MODE_SHARE : getPreferredRoundMode(currentDailyDateKey);
+    let currentSharedWords = sharedWordsFromUrl
+      ? [...sharedWordsFromUrl]
+      : currentRoundMode === ROUND_MODE_DAILY
+        ? [...currentDailyWords]
+        : null;
     let currentShareKey = currentSharedWords ? buildShareKey(currentSharedWords) : null;
+    if (!sharedWordsFromUrl) {
+      persistRoundContextPreference(currentRoundMode, currentDailyDateKey);
+    }
 
     const boardEl = document.getElementById("board");
     const boardWrapEl = document.querySelector(".board-wrap");
@@ -1729,7 +1773,7 @@
     });
 
     document.getElementById("new-game").addEventListener("click", () => {
-      clearSharedRoundContext();
+      activateRandomRoundContext();
       startGame(null, { showTutorial: false, showWordsReveal: true });
     });
 
@@ -1884,6 +1928,97 @@
       return Number.isInteger(value) ? `${value}` : value.toFixed(1).replace(/\.0$/, "");
     }
 
+    function padDatePart(value) {
+      return `${value}`.padStart(2, "0");
+    }
+
+    function buildDateKey(year, month, day) {
+      return `${year}-${padDatePart(month)}-${padDatePart(day)}`;
+    }
+
+    function parseDateKey(dateKey) {
+      const [year, month, day] = `${dateKey}`.split("-").map(Number);
+      return { year, month, day };
+    }
+
+    function utcDateFor(year, month, day) {
+      return new Date(Date.UTC(year, month - 1, day));
+    }
+
+    function dateKeyFromUtcDate(date) {
+      return buildDateKey(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+    }
+
+    function getDatePartsInTimeZone(date = new Date(), timeZone = DAILY_TIME_ZONE) {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(date);
+      const lookup = {};
+      parts.forEach((part) => {
+        if (part.type !== "literal") {
+          lookup[part.type] = part.value;
+        }
+      });
+      return {
+        year: Number(lookup.year),
+        month: Number(lookup.month),
+        day: Number(lookup.day),
+      };
+    }
+
+    function getCurrentDailyDateKey() {
+      const { year, month, day } = getDatePartsInTimeZone(new Date(), DAILY_TIME_ZONE);
+      return buildDateKey(year, month, day);
+    }
+
+    function observedFixedHolidayDateKey(year, month, day) {
+      const date = utcDateFor(year, month, day);
+      const weekday = date.getUTCDay();
+      if (weekday === 6) {
+        date.setUTCDate(date.getUTCDate() - 1);
+      } else if (weekday === 0) {
+        date.setUTCDate(date.getUTCDate() + 1);
+      }
+      return dateKeyFromUtcDate(date);
+    }
+
+    function nthWeekdayDateKey(year, month, weekday, occurrence) {
+      const date = utcDateFor(year, month, 1);
+      const offset = (weekday - date.getUTCDay() + 7) % 7;
+      date.setUTCDate(1 + offset + ((occurrence - 1) * 7));
+      return dateKeyFromUtcDate(date);
+    }
+
+    function lastWeekdayDateKey(year, month, weekday) {
+      const date = utcDateFor(year, month + 1, 0);
+      while (date.getUTCDay() !== weekday) {
+        date.setUTCDate(date.getUTCDate() - 1);
+      }
+      return dateKeyFromUtcDate(date);
+    }
+
+    function hashString(value) {
+      let hash = 2166136261;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    }
+
+    function createSeededRandom(seed) {
+      let stateValue = seed >>> 0;
+      return () => {
+        stateValue = (stateValue + 0x6D2B79F5) >>> 0;
+        let value = Math.imul(stateValue ^ (stateValue >>> 15), 1 | stateValue);
+        value ^= value + Math.imul(value ^ (value >>> 7), 61 | value);
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
     function normalizeShareWords(words) {
       if (!Array.isArray(words)) return null;
       const normalized = words
@@ -1924,10 +2059,7 @@
       return url.toString();
     }
 
-    function clearSharedRoundContext() {
-      currentSharedWords = null;
-      currentShareKey = null;
-
+    function removeShareWordsFromUrl() {
       try {
         const url = new URL(window.location.href);
         if (!url.searchParams.has(SHARE_PARAM)) return;
@@ -1936,6 +2068,138 @@
       } catch (error) {
         // Ignore URL rewrite failures so starting a new random round still works.
       }
+    }
+
+    function getHolidayWordOverridesForYear(year) {
+      if (holidayOverrideCache.has(year)) {
+        return holidayOverrideCache.get(year);
+      }
+
+      const overrides = new Map();
+      const addOverride = (dateKey, words) => {
+        const normalized = normalizeShareWords(words);
+        if (dateKey && normalized && !overrides.has(dateKey)) {
+          overrides.set(dateKey, normalized);
+        }
+      };
+
+      addOverride(observedFixedHolidayDateKey(year, 1, 1), HOLIDAY_WORD_SETS.newYear);
+      addOverride(nthWeekdayDateKey(year, 1, 1, 3), HOLIDAY_WORD_SETS.mlk);
+      addOverride(nthWeekdayDateKey(year, 2, 1, 3), HOLIDAY_WORD_SETS.presidents);
+      addOverride(lastWeekdayDateKey(year, 5, 1), HOLIDAY_WORD_SETS.memorial);
+      addOverride(observedFixedHolidayDateKey(year, 6, 19), HOLIDAY_WORD_SETS.juneteenth);
+      addOverride(observedFixedHolidayDateKey(year, 7, 4), HOLIDAY_WORD_SETS.independence);
+      addOverride(nthWeekdayDateKey(year, 9, 1, 1), HOLIDAY_WORD_SETS.labor);
+      addOverride(nthWeekdayDateKey(year, 10, 1, 2), HOLIDAY_WORD_SETS.columbus);
+      addOverride(observedFixedHolidayDateKey(year, 11, 11), HOLIDAY_WORD_SETS.veterans);
+      addOverride(nthWeekdayDateKey(year, 11, 4, 4), HOLIDAY_WORD_SETS.thanksgiving);
+      addOverride(observedFixedHolidayDateKey(year, 12, 25), HOLIDAY_WORD_SETS.christmas);
+
+      const nextYearNewYear = observedFixedHolidayDateKey(year + 1, 1, 1);
+      if (nextYearNewYear.startsWith(`${year}-`)) {
+        addOverride(nextYearNewYear, HOLIDAY_WORD_SETS.newYear);
+      }
+
+      const hanukkahStart = HANUKKAH_FIRST_NIGHT_BY_YEAR[year];
+      if (hanukkahStart) {
+        const { year: startYear, month: startMonth, day: startDay } = parseDateKey(hanukkahStart);
+        const startDate = utcDateFor(startYear, startMonth, startDay);
+        for (let index = 0; index < 8; index += 1) {
+          const date = new Date(startDate.getTime());
+          date.setUTCDate(date.getUTCDate() + index);
+          addOverride(dateKeyFromUtcDate(date), HOLIDAY_WORD_SETS.hanukkah);
+        }
+      }
+
+      holidayOverrideCache.set(year, overrides);
+      return overrides;
+    }
+
+    function getHolidayWordsForDateKey(dateKey) {
+      const { year } = parseDateKey(dateKey);
+      for (const candidateYear of [year - 1, year, year + 1]) {
+        const words = getHolidayWordOverridesForYear(candidateYear).get(dateKey);
+        if (words) return [...words];
+      }
+      return null;
+    }
+
+    function getSeededDailyWords(dateKey) {
+      const seededRandom = createSeededRandom(hashString(`letter-hunt:${dateKey}`));
+      const pool = [...SOURCE_WORD_POOL];
+      const words = [];
+      while (words.length < 3 && pool.length) {
+        const index = Math.floor(seededRandom() * pool.length);
+        words.push(pool.splice(index, 1)[0]);
+      }
+      return normalizeShareWords(words);
+    }
+
+    function getDailyWordsForDateKey(dateKey) {
+      return getHolidayWordsForDateKey(dateKey) || getSeededDailyWords(dateKey);
+    }
+
+    function getDailyPuzzleContext() {
+      const dateKey = getCurrentDailyDateKey();
+      const words = getDailyWordsForDateKey(dateKey);
+      return {
+        dateKey,
+        words,
+        shareKey: buildShareKey(words),
+      };
+    }
+
+    function getStorageKeyForContext(mode, shareKey = null, dailyDateKey = currentDailyDateKey) {
+      if (mode === ROUND_MODE_SHARE && shareKey) {
+        return `${STORAGE_KEY_PREFIX}:share:${shareKey}`;
+      }
+      if (mode === ROUND_MODE_DAILY) {
+        return `${STORAGE_KEY_PREFIX}:daily:${dailyDateKey}`;
+      }
+      return `${STORAGE_KEY_PREFIX}:random`;
+    }
+
+    function getCurrentStorageKey() {
+      return getStorageKeyForContext(currentRoundMode, currentShareKey, currentDailyDateKey);
+    }
+
+    function getStoredRoundContextPreference() {
+      try {
+        const raw = localStorage.getItem(ACTIVE_CONTEXT_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || (parsed.mode !== ROUND_MODE_DAILY && parsed.mode !== ROUND_MODE_RANDOM)) {
+          return null;
+        }
+        return parsed;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function persistRoundContextPreference(mode, dailyDateKey = currentDailyDateKey) {
+      if (mode === ROUND_MODE_SHARE) return;
+      try {
+        localStorage.setItem(ACTIVE_CONTEXT_KEY, JSON.stringify({ mode, dailyDateKey }));
+      } catch (error) {
+        // Ignore storage failures so the game stays playable in restricted contexts.
+      }
+    }
+
+    function getPreferredRoundMode(dailyDateKey) {
+      const storedPreference = getStoredRoundContextPreference();
+      if (!storedPreference || storedPreference.dailyDateKey !== dailyDateKey) {
+        return ROUND_MODE_DAILY;
+      }
+      return storedPreference.mode === ROUND_MODE_RANDOM ? ROUND_MODE_RANDOM : ROUND_MODE_DAILY;
+    }
+
+    function activateRandomRoundContext() {
+      currentRoundMode = ROUND_MODE_RANDOM;
+      currentSharedWords = null;
+      currentShareKey = null;
+      persistRoundContextPreference(currentRoundMode, currentDailyDateKey);
+      removeShareWordsFromUrl();
     }
 
     function getRenderedShareTiles() {
@@ -2451,7 +2715,9 @@
       state.undoSnapshot = null;
       pushLog(
         normalizedShareWords
-          ? "Shared round loaded with matching source words. Place any letter anywhere, or move placed letters to reshape the board."
+          ? currentRoundMode === ROUND_MODE_DAILY
+            ? "Today's daily puzzle is ready. Place any letter anywhere, or move placed letters to reshape the board."
+            : "Shared round loaded with matching source words. Place any letter anywhere, or move placed letters to reshape the board."
           : "Round started with three source words. Place any letter anywhere, or move placed letters to reshape the board."
       );
       render();
@@ -2499,7 +2765,7 @@
         shareKey: state.shareKey,
       };
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        localStorage.setItem(getCurrentStorageKey(), JSON.stringify(payload));
       } catch (error) {
         // Ignore storage failures so the game stays playable in restricted contexts.
       }
@@ -2508,7 +2774,7 @@
     function restoreSavedGame(expectedShareKey = null) {
       let raw = null;
       try {
-        raw = localStorage.getItem(STORAGE_KEY);
+        raw = localStorage.getItem(getCurrentStorageKey());
       } catch (error) {
         return false;
       }
